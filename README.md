@@ -184,17 +184,14 @@ del panel se puede rastrear hasta una línea concreta de su archivo.
   `app/vite.config.js` (server y preview) y en `vercel.json`. Sin ellas la base
   cae a memoria y **la interfaz lo dice** en vez de perder la importación en
   silencio.
-- **Hay dos `vercel.json`, y es temporal.** Vercel sólo lee el que cae bajo el
-  Root Directory del proyecto: con el ajuste actual (`app`) lee `app/vercel.json`;
-  con el valor por defecto lee el de la raíz, que delega la compilación en
-  `app/`. Están los dos para que el despliegue funcione en cualquiera de los dos
-  casos. Al poner el Root Directory por defecto en el panel de Vercel, borra
-  `app/vercel.json`. Mientras convivan, cualquier cambio en las cabeceras hay
-  que hacerlo en ambos.
-- Equivocarse en eso rompe las cabeceras **sin que falle el despliegue**: el
-  sitio parece correcto y OPFS cae a memoria, perdiendo la importación al
-  recargar. Se comprueba mirando `crossOriginIsolated` en la consola del sitio
-  desplegado.
+- **`vercel.json` va en la raíz y el Root Directory del proyecto se queda en el
+  valor por defecto.** La instalación y la compilación se delegan a `app/` y la
+  salida se declara en `outputDirectory`, así que toda la configuración del
+  despliegue está versionada y no depende de un ajuste del panel.
+- Si alguien pone el Root Directory en `app`, Vercel deja de encontrar ese
+  archivo y se pierden las cabeceras **sin que falle el despliegue**: el sitio
+  parece correcto y OPFS cae a memoria, perdiendo la importación al recargar. Se
+  comprueba mirando `crossOriginIsolated` en la consola del sitio desplegado.
 - Si al arrancar hay una importación guardada, se ofrece retomarla. El panel se
   reconstruye entonces con consultas SQL (`app/src/lib/consultas.js`), que dan
   las mismas cifras que el cálculo en memoria.

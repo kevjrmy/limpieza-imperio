@@ -89,23 +89,19 @@ mismas rarezas y nombres inventados.
 - OPFS exige `COOP: same-origin` + `COEP: require-corp`, puestas en
   `app/vite.config.js` (server y preview) y en `vercel.json`. Si faltan, la base
   cae a memoria y **la interfaz lo dice**; no quites ese aviso.
-- **Hay dos `vercel.json` a propósito, y es un estado transitorio.** Vercel lee
-  el que está bajo el Root Directory del proyecto:
-    - Root Directory = `app` (lo que hay configurado ahora) → lee `app/vercel.json`.
-    - Root Directory por defecto → lee el `vercel.json` de la raíz, que delega la
-      instalación y la compilación en `app/`.
+- **`vercel.json` vive en la raíz y el Root Directory del proyecto se queda en
+  el valor por defecto.** Los dos ajustes están acoplados: Vercel sólo lee el
+  `vercel.json` que cae bajo el Root Directory. Si alguien lo pone en `app`,
+  deja de encontrarlo, se pierden las cabeceras y OPFS cae a memoria **sin que
+  falle el despliegue** — el sitio parece correcto y la importación se pierde al
+  recargar.
 
-  Están los dos para que el despliegue funcione con cualquiera de los dos
-  ajustes. **Si editas las cabeceras, edítalas en ambos**: divergir en silencio
-  es el riesgo real de esta duplicación.
+  La instalación y la compilación se delegan a `app/` (`--prefix app`) y la
+  salida se declara en `outputDirectory`.
 
-  **Cuando alguien ponga el Root Directory por defecto en el panel de Vercel,
-  hay que borrar `app/vercel.json`** y quedarse sólo con el de la raíz.
-
-  Equivocarse aquí rompe las cabeceras **sin romper el despliegue**: el sitio
-  parece correcto y OPFS cae a memoria en silencio. Tras tocar cualquiera de los
-  dos archivos o el ajuste, abre el sitio desplegado y comprueba
-  `crossOriginIsolated === true` en la consola.
+  Tras tocar el archivo o el ajuste, abre el sitio desplegado y comprueba
+  `crossOriginIsolated === true` en la consola. Es la única señal: no hay build
+  en rojo que avise.
 
   `vercel.json` se valida contra un esquema que rechaza propiedades
   desconocidas: no metas claves `"//"` a modo de comentario.

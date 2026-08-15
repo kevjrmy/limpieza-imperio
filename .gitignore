@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────
+# DATOS REALES DEL CLIENTE — NUNCA DEBEN ENTRAR EN GIT
+# Contienen nombres, direcciones, teléfonos y al menos un DNI.
+# ─────────────────────────────────────────────────────────────
+docs/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+.vite/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Editor / SO
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vercel
+.vercel
+
+# Scratch
+scratch/
+tmp/
+
+# Referencias locales con nombres reales del cliente
+*.local.json

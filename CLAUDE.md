@@ -89,19 +89,24 @@ mismas rarezas y nombres inventados.
 - OPFS exige `COOP: same-origin` + `COEP: require-corp`, puestas en
   `app/vite.config.js` (server y preview) y en `vercel.json`. Si faltan, la base
   cae a memoria y **la interfaz lo dice**; no quites ese aviso.
-- **`vercel.json` vive en la raíz y el Root Directory del proyecto se queda en
-  el valor por defecto.** Los dos ajustes están acoplados: Vercel sólo lee el
-  `vercel.json` que cae bajo el Root Directory. Si alguien lo pone en `app`,
-  deja de encontrarlo, se pierden las cabeceras y OPFS cae a memoria **sin que
-  falle el despliegue** — el sitio parece correcto y la importación se pierde al
-  recargar.
+- **La configuración de despliegue vive en `app/vercel.json` y el Root Directory
+  del proyecto en Vercel está puesto en `app`.** Los dos ajustes están acoplados
+  y Vercel sólo lee el `vercel.json` que cae bajo el Root Directory.
 
-  La instalación y la compilación se delegan a `app/` (`--prefix app`) y la
-  salida se declara en `outputDirectory`.
+  Ese archivo no trae sólo las cabeceras: también el `buildCommand`, el
+  `outputDirectory` y el framework. Se comprobó por las malas — al quitarlo
+  (commits b21d1cd y 9c0b0df) el despliegue **falló**, porque el proyecto en
+  Vercel no tiene esos ajustes en el panel y dependía del archivo.
 
-  Tras tocar el archivo o el ajuste, abre el sitio desplegado y comprueba
-  `crossOriginIsolated === true` en la consola. Es la única señal: no hay build
-  en rojo que avise.
+  Si algún día se quiere el Root Directory por defecto, hace falta mover
+  `vercel.json` a la raíz **y** cambiar el ajuste en el panel, en ese orden y
+  comprobando el despliegue. No se puede hacer sólo desde el repositorio.
+
+  Tras tocar el archivo o el ajuste, comprueba **las dos cosas**: que el
+  despliegue termina en `success` (`gh api repos/kevjrmy/limpieza-imperio/deployments`)
+  y que `crossOriginIsolated === true` en la consola del sitio. Mirar sólo las
+  cabeceras engaña: si el build falla, Vercel sigue sirviendo el despliegue
+  anterior y las cabeceras siguen ahí.
 
   `vercel.json` se valida contra un esquema que rechaza propiedades
   desconocidas: no metas claves `"//"` a modo de comentario.
@@ -124,10 +129,5 @@ mismas rarezas y nombres inventados.
 ## Arrancar
 
 ```bash
-npm install && npm run dev    # http://localhost:5174
+npm install --prefix app && npm run dev --prefix app   # http://localhost:5174
 ```
-
-El `package.json` de la raíz sólo delega en `app/` con `--prefix`. Existe porque
-Vercel necesita un `package.json` bajo el Root Directory para arrancar la
-compilación: sin él, el despliegue falla aunque `vercel.json` traiga los
-comandos explícitos.

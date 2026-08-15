@@ -16,11 +16,8 @@ deben estarlo**: llevan nombres, direcciones, teléfonos y al menos un DNI. El
 ## Arrancar
 
 ```bash
-npm install && npm run dev
+npm install --prefix app && npm run dev --prefix app
 ```
-
-El `package.json` de la raíz sólo delega en `app/`, que es donde está el
-proyecto de verdad.
 
 La app queda en `http://localhost:5174`.
 
@@ -187,14 +184,16 @@ del panel se puede rastrear hasta una línea concreta de su archivo.
   `app/vite.config.js` (server y preview) y en `vercel.json`. Sin ellas la base
   cae a memoria y **la interfaz lo dice** en vez de perder la importación en
   silencio.
-- **`vercel.json` va en la raíz y el Root Directory del proyecto se queda en el
-  valor por defecto.** La instalación y la compilación se delegan a `app/` y la
-  salida se declara en `outputDirectory`, así que toda la configuración del
-  despliegue está versionada y no depende de un ajuste del panel.
-- Si alguien pone el Root Directory en `app`, Vercel deja de encontrar ese
-  archivo y se pierden las cabeceras **sin que falle el despliegue**: el sitio
-  parece correcto y OPFS cae a memoria, perdiendo la importación al recargar. Se
-  comprueba mirando `crossOriginIsolated` en la consola del sitio desplegado.
+- **La configuración de despliegue está en `app/vercel.json`, y el Root
+  Directory del proyecto en Vercel está puesto en `app`.** Vercel sólo lee el
+  `vercel.json` que cae bajo el Root Directory, y ese archivo trae tanto las
+  cabeceras como el `buildCommand` y el `outputDirectory`: quitarlo tumba el
+  despliegue. Para tener el Root Directory por defecto habría que mover el
+  archivo a la raíz **y** cambiar el ajuste en el panel a la vez.
+- Al tocar cualquiera de los dos, comprueba las dos cosas: que el despliegue
+  acaba en `success` y que `crossOriginIsolated` es `true` en la consola del
+  sitio. Si el build falla, Vercel sigue sirviendo el despliegue anterior, así
+  que las cabeceras por sí solas no demuestran nada.
 - Si al arrancar hay una importación guardada, se ofrece retomarla. El panel se
   reconstruye entonces con consultas SQL (`app/src/lib/consultas.js`), que dan
   las mismas cifras que el cálculo en memoria.

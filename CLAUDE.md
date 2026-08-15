@@ -5,6 +5,11 @@ Lee su libro de Excel de 85 pestañas en el navegador y le enseña el margen rea
 por cliente. `README.md` explica el porqué de cada decisión; esto es la guía
 operativa.
 
+## Git
+
+**Se trabaja siempre sobre `main`. No crees ramas nuevas nunca**, ni para
+funcionalidades ni para arreglos: commit directo a `main` y push a `origin`.
+
 ## Regla que no se rompe nunca
 
 **Los datos del cliente no entran en git.** `docs/` contiene el libro real con
@@ -82,8 +87,28 @@ mismas rarezas y nombres inventados.
   en el hilo principal. Además, el `exports` de `@sqlite.org/sqlite-wasm` impide
   importar en profundidad su worker propio: por eso hay uno a medida.
 - OPFS exige `COOP: same-origin` + `COEP: require-corp`, puestas en
-  `app/vite.config.js` (server y preview) y en `app/vercel.json`. Si faltan, la
-  base cae a memoria y **la interfaz lo dice**; no quites ese aviso.
+  `app/vite.config.js` (server y preview) y en `vercel.json`. Si faltan, la base
+  cae a memoria y **la interfaz lo dice**; no quites ese aviso.
+- **Hay dos `vercel.json` a propósito, y es un estado transitorio.** Vercel lee
+  el que está bajo el Root Directory del proyecto:
+    - Root Directory = `app` (lo que hay configurado ahora) → lee `app/vercel.json`.
+    - Root Directory por defecto → lee el `vercel.json` de la raíz, que delega la
+      instalación y la compilación en `app/`.
+
+  Están los dos para que el despliegue funcione con cualquiera de los dos
+  ajustes. **Si editas las cabeceras, edítalas en ambos**: divergir en silencio
+  es el riesgo real de esta duplicación.
+
+  **Cuando alguien ponga el Root Directory por defecto en el panel de Vercel,
+  hay que borrar `app/vercel.json`** y quedarse sólo con el de la raíz.
+
+  Equivocarse aquí rompe las cabeceras **sin romper el despliegue**: el sitio
+  parece correcto y OPFS cae a memoria en silencio. Tras tocar cualquiera de los
+  dos archivos o el ajuste, abre el sitio desplegado y comprueba
+  `crossOriginIsolated === true` en la consola.
+
+  `vercel.json` se valida contra un esquema que rechaza propiedades
+  desconocidas: no metas claves `"//"` a modo de comentario.
 - SheetJS se instala desde el CDN oficial. El paquete `xlsx` de npm está
   abandonado en la 0.18.5 — no lo "actualices" a él.
 

@@ -184,16 +184,22 @@ del panel se puede rastrear hasta una línea concreta de su archivo.
   `app/vite.config.js` (server y preview) y en `vercel.json`. Sin ellas la base
   cae a memoria y **la interfaz lo dice** en vez de perder la importación en
   silencio.
-- **La configuración de despliegue está en `app/vercel.json`, y el Root
-  Directory del proyecto en Vercel está puesto en `app`.** Vercel sólo lee el
-  `vercel.json` que cae bajo el Root Directory, y ese archivo trae tanto las
-  cabeceras como el `buildCommand` y el `outputDirectory`: quitarlo tumba el
-  despliegue. Para tener el Root Directory por defecto habría que mover el
-  archivo a la raíz **y** cambiar el ajuste en el panel a la vez.
-- Al tocar cualquiera de los dos, comprueba las dos cosas: que el despliegue
-  acaba en `success` y que `crossOriginIsolated` es `true` en la consola del
-  sitio. Si el build falla, Vercel sigue sirviendo el despliegue anterior, así
-  que las cabeceras por sí solas no demuestran nada.
+- **`vercel.json` va en la raíz y el Root Directory del proyecto se queda en su
+  valor por defecto**, así que toda la configuración del despliegue está
+  versionada. La instalación y la compilación se delegan a `app/` y la salida se
+  declara en `outputDirectory`.
+- Ojo, que es lo que más cuesta ver: **los comandos de `vercel.json` se ejecutan
+  desde el Root Directory.** Con el valor por defecto, `--prefix app` apunta
+  bien; si alguien lo cambia a `app`, resuelve a `app/app` y el build falla.
+- El pipeline de Vercel se puede reproducir en local antes de subir nada:
+
+  ```bash
+  vercel pull --yes --environment production && vercel build --prod
+  ```
+- Al tocar esto, comprueba las dos cosas: que el despliegue acaba en `success` y
+  que `crossOriginIsolated` es `true` en la consola del sitio. Si el build falla,
+  Vercel sigue sirviendo el despliegue anterior, así que las cabeceras por sí
+  solas no demuestran nada.
 - Si al arrancar hay una importación guardada, se ofrece retomarla. El panel se
   reconstruye entonces con consultas SQL (`app/src/lib/consultas.js`), que dan
   las mismas cifras que el cálculo en memoria.

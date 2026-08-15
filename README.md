@@ -7,6 +7,8 @@ Tres pantallas: **soltar el archivo → revisar la importación → panel.** No 
 datos de ejemplo: el cliente suelta su propio libro y ve sus propias cifras.
 Todo ocurre en el navegador; el archivo no se sube a ningún sitio.
 
+**En producción:** https://limpieza-imperio.vercel.app
+
 ## Datos del cliente
 
 `docs/` contiene el libro real y una exportación en CSV. **No están en git y no

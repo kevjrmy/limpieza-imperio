@@ -5,6 +5,17 @@ Lee su libro de Excel de 85 pestañas en el navegador y le enseña el margen rea
 por cliente. `README.md` explica el porqué de cada decisión; esto es la guía
 operativa.
 
+| | |
+|---|---|
+| Repositorio | `git@github.com:kevjrmy/limpieza-imperio.git` (privado) |
+| Producción | https://limpieza-imperio.vercel.app |
+| Proyecto en Vercel | `limpieza-imperio`, Root Directory `.` |
+
+**Estado:** terminado y desplegado, pendiente de enseñárselo al cliente. No es
+un producto en producción todavía: es la pieza con la que se le vende el
+sistema de verdad. Todo lo que se toque tiene que seguir funcionando **con su
+archivo real delante de él**, que es el único escenario que importa.
+
 ## Git
 
 **Se trabaja siempre sobre `main`. No crees ramas nuevas nunca**, ni para
@@ -57,12 +68,37 @@ El bloque **LECTURA DEL LIBRO** debe cuadrar exacto: 7 hojas importadas, 14
 omitidas, 901 servicios, 75.262,60 € facturados, 67 avisos de año, reparto de
 43.244 € con descuadre 0,00 €. Cualquier `FALLA` ahí es una regresión.
 
+El bloque **MÁRGENES DE REFERENCIA** sólo se ejecuta si existe
+`app/scripts/referencia.local.json` con la lista de clientes reales contra la
+que contrastar. Ese archivo está fuera de git a propósito (`*.local.json`): si
+no está, esa comprobación se omite y las demás siguen corriendo.
+
 El bloque **AGRUPACIÓN** se desvía a propósito de la referencia original
 (127 vs 129 clusters de clientes, 103 vs 92 de colaboradores). Está justificado
 en el README: no lo "arregles" relajando las salvaguardas sin leer por qué.
 
 Sin el archivo real, `libro-de-prueba.mjs` genera un libro sintético con las
 mismas rarezas y nombres inventados.
+
+### Probar el sitio desplegado de verdad
+
+Que la página cargue no demuestra nada. Para comprobar el despliegue de punta a
+punta sin subir el archivo del cliente a ningún sitio, se construye un libro
+sintético **dentro del navegador** reutilizando el propio chunk de SheetJS que
+sirve la app, y se mete por el `input` de archivo:
+
+```js
+const XLSX = await import('/assets/xlsx-<hash>.js');
+// …montar las filas con la maquetación de 2026, escribir con XLSX.write…
+const dt = new DataTransfer(); dt.items.add(new File([buf], 'prueba.xlsx'));
+const input = document.querySelector('.zona__input');
+input.files = dt.files;
+input.dispatchEvent(new Event('change', { bubbles: true }));
+```
+
+Comprueba las cifras contra el cálculo a mano y que el reparto cuadre a 0,00 €.
+Al terminar, vacía la base (`{tipo:'limpiar'}` contra el worker) para no dejar
+datos de prueba en OPFS.
 
 ## Invariantes del dominio
 

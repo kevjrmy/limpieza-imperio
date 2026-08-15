@@ -1,0 +1,13 @@
+{
+  "name": "limpiezas-imperio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Demo de contabilidad para Limpiezas El Imperio. El código vive en app/; esto sólo delega.",
+  "scripts": {
+    "dev": "npm run dev --prefix app",
+    "build": "npm run build --prefix app",
+    "preview": "npm run preview --prefix app",
+    "postinstall": "npm install --prefix app",
+    "verificar": "node app/scripts/verificar.mjs"
+  }
+}

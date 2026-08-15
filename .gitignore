@@ -44,3 +44,6 @@ tmp/
 
 # Referencias locales con nombres reales del cliente
 *.local.json
+
+# Sólo delega en app/; no debería generarse lock en la raíz
+/package-lock.json

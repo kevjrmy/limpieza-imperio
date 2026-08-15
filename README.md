@@ -16,8 +16,11 @@ deben estarlo**: llevan nombres, direcciones, teléfonos y al menos un DNI. El
 ## Arrancar
 
 ```bash
-npm install --prefix app && npm run dev --prefix app
+npm install && npm run dev
 ```
+
+El `package.json` de la raíz sólo delega en `app/`, que es donde está el
+proyecto de verdad.
 
 La app queda en `http://localhost:5174`.
 

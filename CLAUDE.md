@@ -124,5 +124,10 @@ mismas rarezas y nombres inventados.
 ## Arrancar
 
 ```bash
-npm install --prefix app && npm run dev --prefix app   # http://localhost:5174
+npm install && npm run dev    # http://localhost:5174
 ```
+
+El `package.json` de la raíz sólo delega en `app/` con `--prefix`. Existe porque
+Vercel necesita un `package.json` bajo el Root Directory para arrancar la
+compilación: sin él, el despliegue falla aunque `vercel.json` traiga los
+comandos explícitos.

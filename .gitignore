@@ -52,3 +52,12 @@ tmp/
 # Next
 .next/
 next-env.d.ts
+
+# Entorno: nada de .env salvo la plantilla, que no lleva secretos.
+.env*
+!.env.example
+
+# Skills que instalan solas las integraciones de Vercel (Clerk, Turso).
+# Son documentación de terceros y se regeneran desde skills-lock.json.
+.agents/skills/
+.claude/skills/

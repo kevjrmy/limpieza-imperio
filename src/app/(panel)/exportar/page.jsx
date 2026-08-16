@@ -1,5 +1,5 @@
-import { periodos } from '../../lib/consultas.js';
-import { nombrePeriodo } from '../../lib/formato.js';
+import { periodos } from '../../../lib/consultas.js';
+import { nombrePeriodo } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
 

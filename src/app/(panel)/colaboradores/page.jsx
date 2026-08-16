@@ -1,8 +1,8 @@
-import FichaPersona from '../../componentes/FichaPersona.jsx';
-import EditarPersona from '../../componentes/EditarPersona.jsx';
-import Filtros from '../../componentes/Filtros.jsx';
-import { colaboradores, periodos } from '../../lib/consultas.js';
-import { euros, numero, entero, fecha, nombrePeriodo } from '../../lib/formato.js';
+import FichaPersona from '../../../componentes/FichaPersona.jsx';
+import EditarPersona from '../../../componentes/EditarPersona.jsx';
+import Filtros from '../../../componentes/Filtros.jsx';
+import { colaboradores, periodos } from '../../../lib/consultas.js';
+import { euros, numero, entero, fecha, nombrePeriodo } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
 

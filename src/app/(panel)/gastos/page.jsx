@@ -1,6 +1,6 @@
-import PanelGastos from '../../componentes/PanelGastos.jsx';
-import Filtros from '../../componentes/Filtros.jsx';
-import { gastos, periodos } from '../../lib/consultas.js';
+import PanelGastos from '../../../componentes/PanelGastos.jsx';
+import Filtros from '../../../componentes/Filtros.jsx';
+import { gastos, periodos } from '../../../lib/consultas.js';
 
 export const dynamic = 'force-dynamic';
 

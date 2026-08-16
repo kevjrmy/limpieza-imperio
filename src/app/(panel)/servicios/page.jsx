@@ -1,11 +1,11 @@
 import Link from 'next/link';
 
-import PanelServicios from '../../componentes/PanelServicios.jsx';
-import Filtros from '../../componentes/Filtros.jsx';
+import PanelServicios from '../../../componentes/PanelServicios.jsx';
+import Filtros from '../../../componentes/Filtros.jsx';
 import {
   servicios, contarServicios, clientes, colaboradores, periodos
-} from '../../lib/consultas.js';
-import { euros, entero, nombrePeriodo } from '../../lib/formato.js';
+} from '../../../lib/consultas.js';
+import { euros, entero, nombrePeriodo } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
 

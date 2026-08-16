@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import EditarPersona from '../../../componentes/EditarPersona.jsx';
-import { cliente, serviciosDeCliente } from '../../../lib/consultas.js';
-import { euros, numero, entero, porcentaje, fecha, nombrePeriodo } from '../../../lib/formato.js';
-import { tonoDinero } from '../../../componentes/formato.js';
+import EditarPersona from '../../../../componentes/EditarPersona.jsx';
+import { cliente, serviciosDeCliente } from '../../../../lib/consultas.js';
+import { euros, numero, entero, porcentaje, fecha, nombrePeriodo } from '../../../../lib/formato.js';
+import { tonoDinero } from '../../../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
 

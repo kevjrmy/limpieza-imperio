@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
-import { totales, porMes, clientes, pendientes } from '../lib/consultas.js';
-import { euros, numero, entero, porcentaje, nombrePeriodo } from '../lib/formato.js';
-import { tonoDinero } from '../componentes/formato.js';
+import { totales, porMes, clientes, pendientes } from '../../lib/consultas.js';
+import { euros, numero, entero, porcentaje, nombrePeriodo } from '../../lib/formato.js';
+import { tonoDinero } from '../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
 

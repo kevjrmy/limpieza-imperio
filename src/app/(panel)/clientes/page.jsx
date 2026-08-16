@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
-import FichaPersona from '../../componentes/FichaPersona.jsx';
-import { clientes } from '../../lib/consultas.js';
-import { euros, numero, entero, porcentaje, fecha } from '../../lib/formato.js';
-import { tonoDinero } from '../../componentes/formato.js';
+import FichaPersona from '../../../componentes/FichaPersona.jsx';
+import { clientes } from '../../../lib/consultas.js';
+import { euros, numero, entero, porcentaje, fecha } from '../../../lib/formato.js';
+import { tonoDinero } from '../../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
 

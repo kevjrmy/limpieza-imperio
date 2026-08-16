@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import FormularioCierre from '../../../componentes/FormularioCierre.jsx';
+import FormularioCierre from '../../../../componentes/FormularioCierre.jsx';
 import {
   porMes, cierre, gastos, costesFijos
-} from '../../../lib/consultas.js';
-import { euros, numero, entero, nombrePeriodo } from '../../../lib/formato.js';
-import { tonoDinero } from '../../../componentes/formato.js';
+} from '../../../../lib/consultas.js';
+import { euros, numero, entero, nombrePeriodo } from '../../../../lib/formato.js';
+import { tonoDinero } from '../../../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
 

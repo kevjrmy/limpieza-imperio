@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
-import PanelRevisar from '../../componentes/PanelRevisar.jsx';
-import { avisos, resumenAvisos, fusiones, pendientes } from '../../lib/consultas.js';
-import { entero } from '../../lib/formato.js';
+import PanelRevisar from '../../../componentes/PanelRevisar.jsx';
+import { avisos, resumenAvisos, fusiones, pendientes } from '../../../lib/consultas.js';
+import { entero } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
 

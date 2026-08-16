@@ -13,9 +13,10 @@ explica el porqué de cada decisión; esto es la guía operativa.
 | Base de datos | Turso (libSQL) — SQLite de verdad, mismo dialecto que en local |
 | Autenticación | Clerk, registro cerrado a un único correo |
 
-**Estado:** el sistema funciona de punta a punta en local con sus datos reales
-sembrados. Falta conectar Turso y Clerk (los dos exigen aceptar términos en el
-navegador) y desplegar.
+**Estado:** desplegado y cerrado con llave. Turso sembrado con los ocho meses de
+2026, Clerk pidiendo contraseña, y ninguna ruta devuelve nada sin sesión.
+Pendiente: enseñárselo, y pasar Clerk a instancia de producción (ahora usa
+claves de prueba, `accounts.dev`).
 
 **No importa su Excel.** Se dejó de leer el `.xlsx` en el navegador: la base
 arranca sembrada desde el libro modelo `.ods` y a partir de ahí él edita en la
@@ -236,6 +237,16 @@ Sin claves de Clerk: en local se pasa sin autenticar y **la cabecera lo anuncia
 con una banda**; en producción la aplicación se niega a servirse. No quites
 ninguna de las dos cosas.
 
+**La pantalla de entrada NO puede colgar del layout que exige sesión.** Está
+fuera del grupo `(panel)` justamente por eso: cuando colgaba del layout raíz y
+ese layout pedía sesión, `/entrar` se redirigía a sí misma y la aplicación
+quedaba inaccesible en cuanto Clerk tuvo claves de verdad.
+
+El registro de Clerk está abierto, así que quien de verdad cierra la puerta es
+`CORREO_AUTORIZADO`: cualquier cuenta que no sea la suya se rechaza en
+`exigirSesion()`. Si algún día se cierra el registro en el panel de Clerk, esa
+variable sigue siendo el segundo cerrojo — no la quites.
+
 ## Restricciones técnicas
 
 - **`src/proxy.js`, no `middleware.js`.** Next 16 renombró la convención. El
@@ -248,8 +259,19 @@ ninguna de las dos cosas.
 - **`consultas.js` no puede importarse desde un componente de cliente**: arrastra
   `sesion.js`, que es sólo de servidor. Lo compartido (`nombrePeriodo`, formato
   de euros y fechas) vive en `formato.js`, que es puro.
-- El proyecto no lleva `vercel.json`: Next se detecta solo y el Root Directory
-  está por defecto. Ya no hacen falta las cabeceras COOP/COEP — no hay OPFS.
+- **`vercel.json` sólo tiene `"framework": "nextjs"`, y hace falta.** El proyecto
+  se creó como Vite y esa preferencia sigue guardada en Vercel; sin esta clave el
+  build termina bien pero el despliegue falla buscando una carpeta `dist` que ya
+  no existe. No le añadas comandos: se validan contra un esquema que rechaza
+  claves desconocidas, y los `buildCommand` con rutas relativas fueron la causa
+  de varios despliegues rotos (b21d1cd, 9c0b0df). Ya no hacen falta las cabeceras
+  COOP/COEP — no hay OPFS.
+- **Comprueba siempre que el despliegue quedó en `Ready`** con
+  `vercel ls limpieza-imperio`. Si falla, Vercel sigue sirviendo el anterior tan
+  ricamente, y la URL responde 200 como si nada.
+- **Después de reconstruir, asegúrate de que el build terminó antes de arrancar
+  `next start`.** Un `next start` sobre un `.next` viejo sirve código anterior sin
+  decir nada; costó dos diagnósticos falsos, uno de ellos de seguridad.
 - SheetJS se instala desde el CDN oficial y **sólo es dependencia de desarrollo**:
   lo usan los scripts, no la aplicación. El paquete `xlsx` de npm está abandonado
   en la 0.18.5 — no lo "actualices" a él.

@@ -37,7 +37,7 @@ género), LUCIA, TOMAS RIVAS, NURIA (colaboradores).
 Antes de cualquier commit:
 
 ```bash
-git diff --cached --name-only | grep -Ei '\.(xlsx|xlsm|xls|csv)$|^docs/'
+git diff --cached --name-only | grep -Ei '\.(xlsx|xlsm|xls|csv|ods)$|^docs/'
 ```
 
 Si eso imprime algo, para.
@@ -48,7 +48,7 @@ Si eso imprime algo, para.
 app/src/lib/      parser.js agrupar.js metricas.js consultas.js
                   texto.js formato.js db.js sqlite.worker.js
 app/src/componentes/   SoltarArchivo · Revision · Panel · AvisoAlmacenamiento
-app/scripts/      verificar.mjs · libro-de-prueba.mjs
+app/scripts/      verificar.mjs · libro-de-prueba.mjs · modelo-2026.mjs
 docs/             archivos reales del cliente (fuera de git)
 ```
 
@@ -100,11 +100,56 @@ Comprueba las cifras contra el cálculo a mano y que el reparto cuadre a 0,00 �
 Al terminar, vacía la base (`{tipo:'limpiar'}` contra el worker) para no dejar
 datos de prueba en OPFS.
 
+## El libro modelo de 2026
+
+`modelo-2026.mjs` reescribe los meses de 2026 del libro real como base de datos
+en `.ods`. Es el esquema sobre el que se va a construir de aquí en adelante; el
+`.xlsx` de 85 pestañas sigue siendo la entrada de la demo, no se sustituye.
+
+```bash
+node app/scripts/modelo-2026.mjs "docs/contabilidad limpiezas el imperio 2025-2026.xlsx"
+# → docs/modelo limpiezas el imperio 2026.ods   (fuera de git: lleva datos reales)
+```
+
+Diez hojas: `SERVICIOS` (una fila por servicio, 996), `SERVICIO_COLABORADOR`
+(quién hizo qué y cuánto cobró, con el reparto en céntimos enteros), `CLIENTES`,
+`COLABORADORES`, `MESES`, `GASTOS`, `COSTES_FIJOS`, `FUSIONES_PROPUESTAS`,
+`AVISOS` y `LEEME`. Incluye enero de 2026, que la app omite por venir con la
+maquetación antigua: el script entiende las dos.
+
+Lo que el script **no** hace, a propósito:
+
+- **No fusiona nombres.** Los `cliente_id` / `colaborador_id` agrupan sólo lo
+  idéntico al normalizar. Los parecidos van a `FUSIONES_PROPUESTAS` con una
+  columna `aceptada` que rellena una persona. Misma regla de siempre: agrupar de
+  menos se arregla luego, agrupar de más destruye datos.
+- **No arregla importes.** Las celdas se copian como están; sólo se redondean
+  los agregados que calcula el script.
+- **No imputa el gasto de empresa al cliente.** Ver abajo.
+
+Dos hallazgos del libro real que el modelo deja a la vista en `AVISOS`, y que
+explican **al céntimo** el descuadre de los ocho meses:
+
+- Tres importes (106,25 · 83,33 · 106,25 €) están escritos **como texto**, así
+  que el propio total de la hoja no los suma.
+- Los totales de cinco meses están montados encadenando celdas a mano
+  (`+Q133+Q62+…`) en vez de con `SUM()`, y en cada uno hay una referencia
+  repetida: esa fila se cobra dos veces.
+
 ## Invariantes del dominio
 
 - **El margen es `valor − (pago_colab + transporte + gasto)`.** Siempre. La
   columna `RENTABILIDAD` del libro se guarda pero no se usa: está escrita a mano
   y no sigue el mismo criterio entre hojas.
+
+  **Pendiente de decidir con el cliente:** el libro modelo se aparta de esto y
+  calcula `valor − (pago_colab + transporte)`. Las columnas `VALOR` y `COMERCIO`
+  no son el gasto de ese servicio: son las compras del mes (supermercado,
+  ferretería, óptica, un KFC) apuntadas en la fila donde había hueco, y se ven
+  amontonadas en las primeras filas de cada hoja sin relación con el cliente que
+  hay al lado. Sumarlas al coste del servicio le carga el gasto a quien no lo
+  causó. En el modelo viven en `GASTOS`, por mes, y el resultado mensual sí las
+  descuenta. **La app sigue con el criterio de arriba hasta que él lo confirme.**
 - **Los campos se resuelven por texto de cabecera, nunca por índice de columna.**
   Las columnas se mueven entre hojas y una no tiene `TRANSPORTE` en absoluto.
 - **La maquetación se detecta por columnas, no por el nombre de la hoja.** Hay

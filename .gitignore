@@ -45,3 +45,10 @@ tmp/
 
 # Referencias locales con nombres reales del cliente
 *.local.json
+
+# Base local de desarrollo (datos reales sembrados desde el .ods)
+.datos/
+
+# Next
+.next/
+next-env.d.ts

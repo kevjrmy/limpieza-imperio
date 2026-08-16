@@ -1,20 +1,26 @@
 # CLAUDE.md
 
-Demo comercial para Limpiezas El Imperio (La Pobla de Vallbona, Valencia).
-Lee su libro de Excel de 85 pestañas en el navegador y le enseña el margen real
-por cliente. `README.md` explica el porqué de cada decisión; esto es la guía
-operativa.
+Sistema de contabilidad en línea de Limpiezas El Imperio (La Pobla de Vallbona,
+Valencia). **Un solo negocio y un solo usuario**: él entra, lleva sus servicios,
+clientes, colaboradores y gastos, y ve el margen real por cliente. `README.md`
+explica el porqué de cada decisión; esto es la guía operativa.
 
 | | |
 |---|---|
 | Repositorio | `git@github.com:kevjrmy/limpieza-imperio.git` (privado) |
 | Producción | https://limpieza-imperio.vercel.app |
-| Proyecto en Vercel | `limpieza-imperio`, Root Directory `.` |
+| Proyecto en Vercel | `limpieza-imperio`, Root Directory por defecto |
+| Base de datos | Turso (libSQL) — SQLite de verdad, mismo dialecto que en local |
+| Autenticación | Clerk, registro cerrado a un único correo |
 
-**Estado:** terminado y desplegado, pendiente de enseñárselo al cliente. No es
-un producto en producción todavía: es la pieza con la que se le vende el
-sistema de verdad. Todo lo que se toque tiene que seguir funcionando **con su
-archivo real delante de él**, que es el único escenario que importa.
+**Estado:** el sistema funciona de punta a punta en local con sus datos reales
+sembrados. Falta conectar Turso y Clerk (los dos exigen aceptar términos en el
+navegador) y desplegar.
+
+**No importa su Excel.** Se dejó de leer el `.xlsx` en el navegador: la base
+arranca sembrada desde el libro modelo `.ods` y a partir de ahí él edita en la
+aplicación. El Excel y los scripts que lo leen siguen existiendo como
+herramienta de línea de comandos, no como parte del producto.
 
 ## Git
 
@@ -44,24 +50,53 @@ Si eso imprime algo, para.
 
 ## Estructura
 
+Next.js 16 (App Router) con las rutas en `src/app/`. **No hay carpeta `app/` en
+la raíz**: si aparece una, Next la toma como directorio de rutas y deja de ver
+`src/app` — pasó al migrar y el síntoma es un 404 en todo o un
+`app_dir must be a directory`.
+
 ```
-app/src/lib/      parser.js agrupar.js metricas.js consultas.js
-                  texto.js formato.js db.js sqlite.worker.js
-app/src/componentes/   SoltarArchivo · Revision · Panel · AvisoAlmacenamiento
-app/scripts/      verificar.mjs · libro-de-prueba.mjs · modelo-2026.mjs
+src/app/          rutas: / · /servicios · /clientes · /colaboradores
+                  /gastos · /meses · /revisar · /exportar · /entrar
+                  api/exportar/[tabla]/route.js
+src/componentes/  PanelServicios · FormularioServicio · PanelGastos
+                  PanelRevisar · FichaPersona · Filtros · Navegacion
+src/lib/          db.js consultas.js acciones.js sesion.js csv.js esquema.sql
+                  agrupar.js metricas.js texto.js formato.js parser.js
+src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
+scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
+                  verificar.mjs · libro-de-prueba.mjs
 docs/             archivos reales del cliente (fuera de git)
 ```
 
-La lógica de negocio vive en `app/src/lib/` como módulos puros sin dependencias
-de DOM. Por eso el mismo código corre en el navegador y en Node, y por eso
-`verificar.mjs` demuestra algo: contrasta lo que la pantalla va a enseñar.
+Reparto de responsabilidades:
+
+- **`consultas.js`** lee, **`acciones.js`** escribe. Las dos exigen sesión en
+  cada función; ver *Autenticación* más abajo.
+- **`db.js`** es lo único que habla con libSQL. Los scripts lo usan directo y
+  por eso se saltan la comprobación de sesión, que es lo correcto.
+- **`parser.js`, `agrupar.js`, `metricas.js`** ya no los usa la interfaz: son
+  la herramienta que construye el `.ods` y la que demuestra que sigue cuadrando.
+
+## Arrancar en local
+
+```bash
+npm install
+npm run esquema                        # crea .datos/limpiezas.db
+npm run sembrar -- --rehacer           # la llena desde el .ods del modelo
+npm run dev                            # http://localhost:3000
+```
+
+Sin `TURSO_DATABASE_URL` la base es un archivo local; con ella, Turso. Es el
+mismo cliente y el mismo SQL en los dos casos, así que lo que se prueba en local
+es lo que corre desplegado.
 
 ## Verificar antes de dar nada por bueno
 
 Si tocas `parser.js`, `agrupar.js` o `metricas.js`, ejecuta:
 
 ```bash
-node app/scripts/verificar.mjs "docs/contabilidad limpiezas el imperio 2025-2026.xlsx" --nombres
+node scripts/verificar.mjs "docs/contabilidad limpiezas el imperio 2025-2026.xlsx" --nombres
 ```
 
 El bloque **LECTURA DEL LIBRO** debe cuadrar exacto: 7 hojas importadas, 14
@@ -69,7 +104,7 @@ omitidas, 901 servicios, 75.262,60 € facturados, 67 avisos de año, reparto de
 43.244 € con descuadre 0,00 €. Cualquier `FALLA` ahí es una regresión.
 
 El bloque **MÁRGENES DE REFERENCIA** sólo se ejecuta si existe
-`app/scripts/referencia.local.json` con la lista de clientes reales contra la
+`scripts/referencia.local.json` con la lista de clientes reales contra la
 que contrastar. Ese archivo está fuera de git a propósito (`*.local.json`): si
 no está, esa comprobación se omite y las demás siguen corriendo.
 
@@ -80,35 +115,49 @@ en el README: no lo "arregles" relajando las salvaguardas sin leer por qué.
 Sin el archivo real, `libro-de-prueba.mjs` genera un libro sintético con las
 mismas rarezas y nombres inventados.
 
-### Probar el sitio desplegado de verdad
+### Comprobar que la base sigue cuadrando
 
-Que la página cargue no demuestra nada. Para comprobar el despliegue de punta a
-punta sin subir el archivo del cliente a ningún sitio, se construye un libro
-sintético **dentro del navegador** reutilizando el propio chunk de SheetJS que
-sirve la app, y se mete por el `input` de archivo:
+`npm run sembrar` contrasta lo insertado contra el propio `.ods` y **sale con
+error si algo no cuadra**: una siembra a medias es peor que ninguna. Deben salir
+164 clientes, 154 colaboradores, 996 servicios, 82.865,60 € facturados y el
+reparto exactamente igual al pago de los servicios con colaborador asignado.
 
-```js
-const XLSX = await import('/assets/xlsx-<hash>.js');
-// …montar las filas con la maquetación de 2026, escribir con XLSX.write…
-const dt = new DataTransfer(); dt.items.add(new File([buf], 'prueba.xlsx'));
-const input = document.querySelector('.zona__input');
-input.files = dt.files;
-input.dispatchEvent(new Event('change', { bubbles: true }));
+Después de tocar cualquier cosa que escriba, esta consulta tiene que dar dos
+números idénticos — es la que detecta un reparto roto:
+
+```sql
+SELECT ROUND((SELECT SUM(pago) FROM servicio_colaborador), 2)                AS repartido,
+       ROUND((SELECT SUM(s.pago_colab) FROM servicios s
+               WHERE EXISTS (SELECT 1 FROM servicio_colaborador x
+                              WHERE x.servicio_id = s.id)), 2)               AS asignado;
 ```
 
-Comprueba las cifras contra el cálculo a mano y que el reparto cuadre a 0,00 €.
-Al terminar, vacía la base (`{tipo:'limpiar'}` contra el worker) para no dejar
-datos de prueba en OPFS.
+### Probar que no se escapa nada sin autenticar
+
+Que la página cargue no demuestra nada, y con datos reales dentro esto no es
+opcional. Con un `next build && next start` **sin** claves de Clerk, ninguna
+ruta puede devolver datos del cliente:
+
+```bash
+for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
+  curl -s "http://localhost:3000$u" | grep -ci "<un nombre real del libro>"
+done   # todos tienen que dar 0
+```
+
+Se comprobó y **falló** la primera vez: mirar sólo la página renderizada engaña,
+porque los datos viajan además en la carga RSC. Por eso hay que buscar en el
+HTML crudo, no en el texto visible.
 
 ## El libro modelo de 2026
 
 `modelo-2026.mjs` reescribe los meses de 2026 del libro real como base de datos
-en `.ods`. Es el esquema sobre el que se va a construir de aquí en adelante; el
-`.xlsx` de 85 pestañas sigue siendo la entrada de la demo, no se sustituye.
+en `.ods`. **Es la semilla del sistema**: `sembrar.mjs` lo lee y llena las
+tablas. El `.xlsx` ya no lo abre nadie salvo este script.
 
 ```bash
-node app/scripts/modelo-2026.mjs "docs/contabilidad limpiezas el imperio 2025-2026.xlsx"
+npm run modelo -- "docs/contabilidad limpiezas el imperio 2025-2026.xlsx"
 # → docs/modelo limpiezas el imperio 2026.ods   (fuera de git: lleva datos reales)
+npm run sembrar -- --rehacer
 ```
 
 Diez hojas: `SERVICIOS` (una fila por servicio, 996), `SERVICIO_COLABORADOR`
@@ -138,67 +187,76 @@ explican **al céntimo** el descuadre de los ocho meses:
 
 ## Invariantes del dominio
 
-- **El margen es `valor − (pago_colab + transporte + gasto)`.** Siempre. La
-  columna `RENTABILIDAD` del libro se guarda pero no se usa: está escrita a mano
-  y no sigue el mismo criterio entre hojas.
+- **El margen es `valor − (pago_colab + transporte)`**, y no se escribe en
+  ninguna parte: es una **columna generada** de la tabla `servicios`
+  (`esquema.sql`). El criterio vive en un solo sitio y no puede desincronizarse
+  de los importes. Si hay que cambiarlo, se cambia ahí y es una migración.
 
-  **Pendiente de decidir con el cliente:** el libro modelo se aparta de esto y
-  calcula `valor − (pago_colab + transporte)`. Las columnas `VALOR` y `COMERCIO`
-  no son el gasto de ese servicio: son las compras del mes (supermercado,
-  ferretería, óptica, un KFC) apuntadas en la fila donde había hueco, y se ven
-  amontonadas en las primeras filas de cada hoja sin relación con el cliente que
-  hay al lado. Sumarlas al coste del servicio le carga el gasto a quien no lo
-  causó. En el modelo viven en `GASTOS`, por mes, y el resultado mensual sí las
-  descuenta. **La app sigue con el criterio de arriba hasta que él lo confirme.**
-- **Los campos se resuelven por texto de cabecera, nunca por índice de columna.**
-  Las columnas se mueven entre hojas y una no tiene `TRANSPORTE` en absoluto.
-- **La maquetación se detecta por columnas, no por el nombre de la hoja.** Hay
-  una hoja de 2026 con la maquetación antigua.
-- **Avisar, nunca corregir en silencio.** Años que no cuadran, columnas
-  ausentes, hojas omitidas: todo se enseña. Un número silenciosamente arreglado
-  es peor que un número marcado.
+  El gasto de empresa **no entra**. Las columnas `VALOR` y `COMERCIO` del Excel
+  no eran el gasto de ese servicio: eran las compras del mes (supermercado,
+  ferretería, óptica) apuntadas en la fila donde había hueco, amontonadas en las
+  primeras filas de cada hoja sin relación con el cliente de al lado. Ahora viven
+  en la tabla `gastos`, por mes, y el resultado mensual sí las descuenta.
+  **Pendiente de confirmar con él la primera vez que lo vea.**
+
+  La columna `RENTABILIDAD` del libro no se importó: estaba escrita a mano y no
+  seguía el mismo criterio entre hojas.
+- **Avisar, nunca corregir en silencio.** Lo que no cuadraba en el Excel está en
+  la tabla `avisos`, sin resolver, con la fila de origen. Un número
+  silenciosamente arreglado es peor que un número marcado.
 - **Agrupar de menos se arregla en pantalla; agrupar de más destruye datos.**
-  Ante la duda, no fusionar.
-- El reparto de pagos se hace en céntimos enteros (`repartir()` en
-  `metricas.js`) para que la suma cuadre exacta con el libro.
+  Las fusiones de nombres están en la tabla `fusiones`, en estado `pendiente`, y
+  sólo se aplican cuando él lo dice. Aplicarlas mueve historial y borra filas.
+- El reparto de pagos se hace en **céntimos enteros** (`repartir()` en
+  `metricas.js`) para que la suma de las partes cuadre exacta con el pago.
+- **Nada con historial se borra.** Un cliente con servicios o un colaborador con
+  asignaciones no se pueden borrar: se marcan inactivos. La comprobación está en
+  `acciones.js`, no en la pantalla.
+- Los importes son `REAL`, no céntimos enteros: él escribe 83,333 € y redondear
+  le cambiaría los totales del año sin avisar.
+- Estas dos siguen valiendo para los scripts que leen el Excel: **los campos se
+  resuelven por texto de cabecera, nunca por índice**, y **la maquetación se
+  detecta por columnas, no por el nombre de la hoja**.
+
+## Autenticación
+
+**La sesión se comprueba en cada recurso que toca datos, no en el proxy.** Está
+envuelto de forma que no se puede olvidar: toda función exportada de
+`consultas.js` y de `acciones.js` pasa por `exigirSesion()`, y la ruta de
+descarga la llama a mano.
+
+No es celo: **comprobar sólo en el layout no funciona**. Next renderiza la
+página aparte del layout, así que un layout que decide no pintar `children`
+igualmente ha ejecutado la página y ha serializado su resultado en la carga RSC.
+Se probó y por ahí salían nombres y direcciones en `/servicios`. Es también lo
+que recomienda Clerk desde la v7, que por eso marcó `createRouteMatcher` como
+obsoleto.
+
+Sin claves de Clerk: en local se pasa sin autenticar y **la cabecera lo anuncia
+con una banda**; en producción la aplicación se niega a servirse. No quites
+ninguna de las dos cosas.
 
 ## Restricciones técnicas
 
-- **SQLite tiene que quedarse en el worker.** OPFS usa `Atomics.wait`, prohibido
-  en el hilo principal. Además, el `exports` de `@sqlite.org/sqlite-wasm` impide
-  importar en profundidad su worker propio: por eso hay uno a medida.
-- OPFS exige `COOP: same-origin` + `COEP: require-corp`, puestas en
-  `app/vite.config.js` (server y preview) y en `vercel.json`. Si faltan, la base
-  cae a memoria y **la interfaz lo dice**; no quites ese aviso.
-- **`vercel.json` vive en la raíz y el Root Directory del proyecto está en su
-  valor por defecto.** Los dos ajustes están acoplados de una forma que no se ve
-  hasta que falla: **los comandos de `vercel.json` se ejecutan desde el Root
-  Directory, no desde la raíz del repositorio.** Con el Root Directory por
-  defecto, `--prefix app` y `app/dist` apuntan bien. Si alguien lo cambia a
-  `app`, esos mismos comandos resuelven a `app/app` y el build muere con un
-  ENOENT (pasó en b21d1cd y 9c0b0df).
-
-  Antes de tocar nada de esto, valida el build **localmente con el pipeline de
-  Vercel**, que reproduce el fallo sin gastar un despliegue:
-
-  ```bash
-  vercel pull --yes --environment production
-  vercel build --prod
-  ```
-
-  Después, comprueba **las dos cosas**: que el despliegue termina en `success`
-  (`vercel ls limpieza-imperio`) y que `crossOriginIsolated === true` en la
-  consola del sitio. Mirar sólo las cabeceras engaña: si el build falla, Vercel
-  sigue sirviendo el despliegue anterior, con sus cabeceras intactas.
-
-  `vercel.json` se valida contra un esquema que rechaza propiedades
-  desconocidas: no metas claves `"//"` a modo de comentario.
-- SheetJS se instala desde el CDN oficial. El paquete `xlsx` de npm está
-  abandonado en la 0.18.5 — no lo "actualices" a él.
+- **`src/proxy.js`, no `middleware.js`.** Next 16 renombró la convención. El
+  proxy sólo deja disponible la sesión; no decide quién entra.
+- **No crees una carpeta `app/` en la raíz.** Next la tomaría como directorio de
+  rutas en lugar de `src/app`.
+- **`db.js` es lo único que abre la base.** El cliente se crea perezoso y sin
+  `Proxy` de por medio: Next evalúa el módulo en tiempo de compilación y crearlo
+  arriba revienta el build cuando aún no hay variables de entorno.
+- **`consultas.js` no puede importarse desde un componente de cliente**: arrastra
+  `sesion.js`, que es sólo de servidor. Lo compartido (`nombrePeriodo`, formato
+  de euros y fechas) vive en `formato.js`, que es puro.
+- El proyecto no lleva `vercel.json`: Next se detecta solo y el Root Directory
+  está por defecto. Ya no hacen falta las cabeceras COOP/COEP — no hay OPFS.
+- SheetJS se instala desde el CDN oficial y **sólo es dependencia de desarrollo**:
+  lo usan los scripts, no la aplicación. El paquete `xlsx` de npm está abandonado
+  en la 0.18.5 — no lo "actualices" a él.
 
 ## Estilo
 
-- **CSS plano en `app/src/estilos.css`. Nada de Tailwind ni SASS.**
+- **CSS plano en `src/estilos.css`. Nada de Tailwind ni SASS.**
 - Estética de libro de cuentas: reglas finas, `tabular-nums`, dinero
   monoespaciado y a la derecha. **Color sólo para dos cosas: el margen y lo que
   hay que revisar.** No añadas colores decorativos.
@@ -208,9 +266,15 @@ explican **al céntimo** el descuadre de los ocho meses:
 - **Toda la interfaz y todo el código —nombres, comentarios, commits— en
   español.**
 - Responsive hasta móvil, foco visible y `prefers-reduced-motion` respetado.
+- Se edita donde se lee: los formularios se abren en la propia fila de la tabla,
+  no en otra página. Él viene de desplazarse por una hoja de 224 filas.
 
-## Arrancar
+<!-- BEGIN:nextjs-agent-rules -->
 
-```bash
-npm install --prefix app && npm run dev --prefix app   # http://localhost:5174
-```
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

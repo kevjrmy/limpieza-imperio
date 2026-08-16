@@ -1,0 +1,24 @@
+{
+  "name": "limpiezas-imperio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "esquema": "node scripts/esquema.mjs",
+    "sembrar": "node scripts/sembrar.mjs",
+    "modelo": "node scripts/modelo-2026.mjs"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.7.6",
+    "@libsql/client": "^0.17.4",
+    "next": "^16.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

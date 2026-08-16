@@ -200,7 +200,7 @@ Cómo se decide qué se repite (`src/lib/recurrencia.js`, módulo puro):
 
 - Se agrupa por **cliente + día de la semana**, y se divide entre las veces que
   ese día cae en el mes. Así un cliente con 13 servicios en viernes sobre 5
-  viernes genera 3 por viernes, que es lo que pasa en una finca con varios
+  viernes genera 3 por viernes, que es lo que pasa en un edificio con varios
   portales.
 - Lo que ocurrió **una sola vez no se copia**: un trabajo suelto no es una
   rutina y proponerlo sólo da filas que borrar.

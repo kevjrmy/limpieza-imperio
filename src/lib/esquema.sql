@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS servicios (
   notas       TEXT NOT NULL DEFAULT '',
   revisar     INTEGER NOT NULL DEFAULT 0,
   origen      TEXT NOT NULL DEFAULT '',   -- 'CLIENTES AGOSTO 2026!86' o '' si es nuevo
+
+  -- Un borrador es un servicio propuesto por el generador de recurrencias que
+  -- él todavía no ha validado. NO cuenta para nada hasta que lo confirma: los
+  -- agregados leen la vista `v_servicios`, no esta tabla.
+  borrador    INTEGER NOT NULL DEFAULT 0,
+
   creado_en   TEXT NOT NULL DEFAULT (datetime('now')),
   editado_en  TEXT NOT NULL DEFAULT (datetime('now')),
 
@@ -75,6 +81,20 @@ CREATE INDEX IF NOT EXISTS idx_servicios_periodo ON servicios(periodo);
 CREATE INDEX IF NOT EXISTS idx_servicios_cliente ON servicios(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_servicios_fecha   ON servicios(fecha);
 CREATE INDEX IF NOT EXISTS idx_servicios_revisar ON servicios(revisar);
+CREATE INDEX IF NOT EXISTS idx_servicios_borrador ON servicios(borrador);
+
+-- Los servicios que cuentan.
+--
+-- Todo lo que suma dinero —resúmenes, márgenes por cliente, cierres de mes,
+-- exportaciones— lee de aquí y NUNCA de `servicios` a pelo. Es la misma idea
+-- que la columna generada del margen: la regla vive en el esquema, en un solo
+-- sitio, en vez de repartida por veinte consultas donde basta olvidarse de un
+-- WHERE para inflarle la facturación con servicios que él no ha confirmado.
+--
+-- La pantalla de servicios sí lee la tabla directamente: es donde revisa los
+-- borradores, y ahí tienen que verse.
+CREATE VIEW IF NOT EXISTS v_servicios AS
+  SELECT * FROM servicios WHERE borrador = 0;
 
 -- ── Quién hizo cada servicio ────────────────────────────────────────────────
 -- `pago` es la parte que le tocó a esa persona en ese servicio. Se reparte en

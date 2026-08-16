@@ -57,13 +57,16 @@ la raíz**: si aparece una, Next la toma como directorio de rutas y deja de ver
 `app_dir must be a directory`.
 
 ```
-src/app/          rutas: / · /servicios · /clientes · /colaboradores
-                  /gastos · /meses · /revisar · /exportar · /entrar
+src/app/          rutas: / · /preparar · /servicios · /clientes
+                  /colaboradores · /gastos · /meses · /revisar · /exportar
+                  /entrar
                   api/exportar/[tabla]/route.js
+                  api/exportar/mes/[periodo]/route.js
 src/componentes/  PanelServicios · FormularioServicio · PanelGastos
                   PanelRevisar · FichaPersona · Filtros · Navegacion
 src/lib/          db.js consultas.js acciones.js sesion.js csv.js esquema.sql
-                  agrupar.js metricas.js texto.js formato.js parser.js
+                  recurrencia.js agrupar.js metricas.js texto.js formato.js
+                  parser.js
 src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
 scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
                   verificar.mjs · libro-de-prueba.mjs
@@ -185,6 +188,55 @@ explican **al céntimo** el descuadre de los ocho meses:
 - Los totales de cinco meses están montados encadenando celdas a mano
   (`+Q133+Q62+…`) en vez de con `SUM()`, y en cada uno hay una referencia
   repetida: esa fila se cobra dos veces.
+
+## Preparar el mes (borradores por recurrencia)
+
+El negocio es rutinario: una persona va a casa de un cliente todos los lunes, y
+el mes que viene irá otra vez todos los lunes. `/preparar` mira el mes anterior,
+detecta esas rutinas y deja el mes siguiente escrito en **borrador** para que él
+sólo corrija lo que haya cambiado.
+
+Cómo se decide qué se repite (`src/lib/recurrencia.js`, módulo puro):
+
+- Se agrupa por **cliente + día de la semana**, y se divide entre las veces que
+  ese día cae en el mes. Así un cliente con 13 servicios en viernes sobre 5
+  viernes genera 3 por viernes, que es lo que pasa en una finca con varios
+  portales.
+- Lo que ocurrió **una sola vez no se copia**: un trabajo suelto no es una
+  rutina y proponerlo sólo da filas que borrar.
+- El importe, las horas y la hora salen del **valor más repetido**.
+- **Quién lo hace se propone sólo si hay una persona claramente habitual.** En
+  los datos reales un mismo cliente rota entre tres y cinco personas en un mes
+  (hay uno con cinco servicios hechos por cinco personas distintas): rellenarlo
+  a ciegas acertaría poco y corregir cuesta más que escribir.
+
+**Un borrador no cuenta para nada** —ni margen, ni cierre, ni exportación—
+hasta que él lo confirma. Eso no depende de acordarse de poner un `WHERE`:
+
+- `servicios.borrador` marca la fila.
+- **La vista `v_servicios` es lo que cuenta**, y filtra los borradores. Todos los
+  agregados leen la vista. La única lectura que va contra la tabla es la lista de
+  `/servicios`, que es justo donde hay que verlos.
+
+Si añades una consulta que sume dinero, **lee de `v_servicios`**. Es la misma
+idea que la columna generada del margen: la regla vive en el esquema.
+
+Generar se niega si el mes ya tiene servicios confirmados o borradores sin
+resolver: adelantar dos veces el mismo mes duplicaría trabajo hecho, y eso no se
+arregla deshaciendo.
+
+## Exportar el mes entero
+
+`/api/exportar/mes/2026-08` da **un solo CSV** con servicios, resumen por
+cliente, resumen por colaborador, gastos, costes fijos y el cierre, en bloques
+uno debajo de otro. Es la maquetación que él ya tenía en Excel —la tabla y,
+debajo, los totales—, así que al abrirlo se encuentra algo conocido. Sólo sale
+lo confirmado.
+
+Comprobado abriéndolo con LibreOffice en locale español: los acentos y la raya
+llegan bien, y `83,333` se lee como número 83.333, no como texto. Si lo pruebas
+con un locale inglés parecerá roto (`10571,579` → 10571579): es el locale de la
+prueba, no el archivo.
 
 ## Invariantes del dominio
 

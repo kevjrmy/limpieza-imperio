@@ -15,9 +15,10 @@ export default async function Servicios({ searchParams }) {
   const p = await searchParams;
   const periodo = typeof p?.periodo === 'string' ? p.periodo : '';
   const revisar = p?.revisar === '1';
+  const borrador = p?.borrador === 'si' ? 'si' : p?.borrador === 'todos' ? 'todos' : 'no';
   const pagina = Math.max(1, Number(p?.pagina) || 1);
 
-  const filtro = { periodo, revisar };
+  const filtro = { periodo, revisar, borrador };
 
   const [lista, total, listaClientes, listaColab, listaPeriodos] = await Promise.all([
     servicios({ ...filtro, limite: POR_PAGINA, desde: (pagina - 1) * POR_PAGINA }),
@@ -33,9 +34,11 @@ export default async function Servicios({ searchParams }) {
 
   const enlace = (cambios) => {
     const q = new URLSearchParams();
-    const v = { periodo, revisar: revisar ? '1' : '', pagina: String(pagina), ...cambios };
+    const v = { periodo, revisar: revisar ? '1' : '', borrador,
+      pagina: String(pagina), ...cambios };
     if (v.periodo) q.set('periodo', v.periodo);
     if (v.revisar) q.set('revisar', '1');
+    if (v.borrador && v.borrador !== 'no') q.set('borrador', v.borrador);
     if (v.pagina && v.pagina !== '1') q.set('pagina', v.pagina);
     return `/servicios${q.toString() ? `?${q}` : ''}`;
   };
@@ -44,7 +47,8 @@ export default async function Servicios({ searchParams }) {
     <>
       <h1>Servicios</h1>
 
-      <Filtros ruta="/servicios" periodos={listaPeriodos} periodo={periodo} revisar={revisar} />
+      <Filtros ruta="/servicios" periodos={listaPeriodos} periodo={periodo}
+        revisar={revisar} borrador={borrador} conBorrador />
 
       <p className="nota-metodo">
         {entero(total)} servicios{periodo && ` en ${nombrePeriodo(periodo)}`}
@@ -52,7 +56,8 @@ export default async function Servicios({ searchParams }) {
         {euros(sumaMargen)} de margen.
       </p>
 
-      <PanelServicios servicios={lista} clientes={listaClientes} colaboradores={listaColab} />
+      <PanelServicios servicios={lista} clientes={listaClientes} colaboradores={listaColab}
+        periodo={periodo} />
 
       {paginas > 1 && (
         <nav className="paginacion" aria-label="Páginas">

@@ -73,9 +73,11 @@ export default function PanelServicios({ servicios, clientes, colaboradores }) {
 function Fila({ servicio: s, abierto, alAbrir, alCerrar, clientes, colaboradores }) {
   return (
     <>
-      <tr className={s.margen < 0 ? 'fila--perdida' : undefined}>
+      <tr className={[s.margen < 0 ? 'fila--perdida' : '',
+        s.borrador ? 'fila--borrador' : ''].filter(Boolean).join(' ') || undefined}>
         <td>
           {comoFecha(s.fecha) || <span className="tenue">sin fecha</span>}
+          {Boolean(s.borrador) && <> <span className="marca marca--borrador">borrador</span></>}
           {Boolean(s.revisar) && <> <span className="marca marca--revisar">revisar</span></>}
         </td>
         <th scope="row" className="celda-nombre">

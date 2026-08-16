@@ -18,6 +18,9 @@ import { revalidatePath } from 'next/cache';
 import { consultar, consultarUna, ejecutar, enLote } from './db.js';
 import { repartir } from './metricas.js';
 import { exigirSesion } from './sesion.js';
+import { proponerMes } from './recurrencia.js';
+import { serviciosParaRecurrencia } from './consultas.js';
+import { nombrePeriodo } from './formato.js';
 
 // ── Utilidades de formulario ────────────────────────────────────────────────
 
@@ -160,6 +163,101 @@ export const marcarRevisado = accion(async (id) => {
     [Number(id)]);
   refrescar();
   return { ok: true };
+});
+
+// ── Preparar el mes desde lo que se repite ──────────────────────────────────
+
+/**
+ * Genera los borradores del mes a partir de la recurrencia del mes anterior.
+ *
+ * Los borradores no cuentan para nada hasta que él los confirma: los agregados
+ * leen la vista `v_servicios`, que los excluye.
+ *
+ * Se niega a generar sobre un mes que ya tiene servicios confirmados. Adelantar
+ * un mes ya empezado duplicaría trabajo hecho, y eso no se arregla deshaciendo.
+ */
+export const generarBorradores = accion(async (destino, origen) => {
+  exigir(/^\d{4}-\d{2}$/.test(destino), 'Mes de destino mal escrito.');
+  exigir(/^\d{4}-\d{2}$/.test(origen), 'Mes de origen mal escrito.');
+  exigir(origen < destino, 'El mes de origen tiene que ser anterior al de destino.');
+
+  const [{ firmes, borradores }] = await consultar(
+    `SELECT (SELECT COUNT(*) FROM servicios WHERE periodo = ? AND borrador = 0) AS firmes,
+            (SELECT COUNT(*) FROM servicios WHERE periodo = ? AND borrador = 1) AS borradores`,
+    [destino, destino]);
+
+  exigir(firmes === 0,
+    `${nombrePeriodo(destino)} ya tiene ${firmes} servicio(s) confirmados. `
+    + 'Generar encima duplicaría lo que ya está hecho.');
+  exigir(borradores === 0,
+    `${nombrePeriodo(destino)} ya tiene ${borradores} borradores. `
+    + 'Descártalos antes de volver a generar.');
+
+  const servicios = await serviciosParaRecurrencia(origen);
+  exigir(servicios.length > 0, `No hay servicios en ${nombrePeriodo(origen)} de los que copiar.`);
+
+  const { propuestas, resumen } = proponerMes(servicios, origen, destino);
+  exigir(propuestas.length > 0,
+    `No se ha encontrado nada que se repita en ${nombrePeriodo(origen)}.`);
+
+  // Se insertan en lote: son ciento y pico filas y cada una con su reparto.
+  const sentencias = [];
+  for (const p of propuestas) {
+    sentencias.push({
+      sql: `INSERT INTO servicios
+              (periodo, fecha, hora, cliente_id, horas, valor, pago_colab,
+               transporte, borrador, origen)
+            VALUES (?,?,?,?,?,?,?,?,1,?)`,
+      args: [p.periodo, p.fecha, p.hora, p.clienteId, p.horas, p.valor,
+        p.pagoColab, p.transporte, `recurrencia:${origen}`],
+    });
+  }
+  await enLote(sentencias);
+
+  // El colaborador habitual, cuando lo hay, se asigna después: hace falta el id
+  // del servicio recién creado y por eso no cabe en el mismo lote.
+  const creados = await consultar(
+    `SELECT id, fecha, cliente_id, pago_colab FROM servicios
+      WHERE periodo = ? AND borrador = 1 ORDER BY fecha, id`, [destino]);
+
+  const asignaciones = [];
+  propuestas.forEach((p, i) => {
+    const servicio = creados[i];
+    if (!p.colaborador || !servicio) return;
+    asignaciones.push({
+      sql: `INSERT INTO servicio_colaborador (servicio_id, colaborador_id, pago)
+            VALUES (?,?,?)`,
+      args: [servicio.id, p.colaborador, p.pagoColab],
+    });
+  });
+  if (asignaciones.length) await enLote(asignaciones);
+
+  refrescar();
+  return { ok: true, resumen: { ...resumen, asignados: asignaciones.length } };
+});
+
+/** Pasa los borradores del mes a servicios de verdad. */
+export const confirmarBorradores = accion(async (periodo) => {
+  exigir(/^\d{4}-\d{2}$/.test(periodo), 'Mes mal escrito.');
+
+  const { filas } = await ejecutar(
+    `UPDATE servicios SET borrador = 0, editado_en = datetime('now')
+      WHERE periodo = ? AND borrador = 1`, [periodo]);
+
+  exigir(filas > 0, 'No había borradores que confirmar.');
+  refrescar();
+  return { ok: true, confirmados: filas };
+});
+
+/** Tira los borradores del mes. No toca lo confirmado. */
+export const descartarBorradores = accion(async (periodo) => {
+  exigir(/^\d{4}-\d{2}$/.test(periodo), 'Mes mal escrito.');
+
+  const { filas } = await ejecutar(
+    'DELETE FROM servicios WHERE periodo = ? AND borrador = 1', [periodo]);
+
+  refrescar();
+  return { ok: true, descartados: filas };
 });
 
 // ── Clientes ────────────────────────────────────────────────────────────────

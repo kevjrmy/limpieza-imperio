@@ -18,6 +18,7 @@
 
 import { consultar, consultarUna } from './db.js';
 import { exigirSesion } from './sesion.js';
+import { proponerMes } from './recurrencia.js';
 
 /** Envuelve una lectura para que no se ejecute sin sesión válida. */
 function protegida(fn) {
@@ -45,6 +46,11 @@ export const avisos = protegida(_avisos);
 export const resumenAvisos = protegida(_resumenAvisos);
 export const fusiones = protegida(_fusiones);
 export const pendientes = protegida(_pendientes);
+export const estadoDelMes = protegida(_estadoDelMes);
+export const mesesConBorradores = protegida(_mesesConBorradores);
+export const mesAnteriorCon = protegida(_mesAnteriorCon);
+export const serviciosParaRecurrencia = protegida(_serviciosParaRecurrencia);
+export const analizarRecurrencia = protegida(_analizarRecurrencia);
 
 // ── Resumen ─────────────────────────────────────────────────────────────────
 
@@ -56,7 +62,7 @@ async function _totales() {
            COALESCE(SUM(transporte), 0)    AS transporte,
            COALESCE(SUM(margen), 0)        AS margen,
            COALESCE(SUM(horas), 0)         AS horas
-      FROM servicios`);
+      FROM v_servicios`);
 }
 
 /**
@@ -82,7 +88,7 @@ async function _porMes() {
              - COALESCE(c.seg_soc, 0) - COALESCE(c.gestoria, 0)
              - COALESCE(c.iva_irpf, 0)              AS resultado,
            c.facturado_libro                        AS facturadoLibro
-      FROM servicios s
+      FROM v_servicios s
       LEFT JOIN (SELECT periodo, SUM(importe) AS gastos FROM gastos GROUP BY periodo) g
              ON g.periodo = s.periodo
       LEFT JOIN (SELECT periodo, SUM(importe) AS fijos FROM costes_fijos GROUP BY periodo) f
@@ -94,7 +100,7 @@ async function _porMes() {
 
 async function _periodos() {
   const filas = await consultar(
-    'SELECT DISTINCT periodo FROM servicios ORDER BY periodo DESC');
+    'SELECT DISTINCT periodo FROM v_servicios ORDER BY periodo DESC');
   return filas.map((f) => f.periodo);
 }
 
@@ -112,7 +118,7 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
            COALESCE(SUM(s.margen), 0)        AS margen,
            MAX(s.fecha)                      AS ultimo
       FROM clientes c
-      LEFT JOIN servicios s
+      LEFT JOIN v_servicios s
              ON s.cliente_id = c.id
             AND (?1 = '' OR s.periodo = ?1)
      WHERE (?2 = '' OR c.nombre LIKE '%' || ?2 || '%')
@@ -130,7 +136,7 @@ async function _serviciosDeCliente(id) {
                    FROM servicio_colaborador sc
                    JOIN colaboradores co ON co.id = sc.colaborador_id
                   WHERE sc.servicio_id = s.id) AS colaboradores
-      FROM servicios s
+      FROM v_servicios s
      WHERE s.cliente_id = ?
      ORDER BY s.periodo DESC, s.fecha DESC`, [id]);
 }
@@ -147,7 +153,7 @@ async function _colaboradores({ periodo = '' } = {}) {
            MAX(s.fecha)                              AS ultimo
       FROM colaboradores co
       LEFT JOIN servicio_colaborador sc ON sc.colaborador_id = co.id
-      LEFT JOIN servicios s
+      LEFT JOIN v_servicios s
              ON s.id = sc.servicio_id
             AND (?1 = '' OR s.periodo = ?1)
      GROUP BY co.id
@@ -156,13 +162,22 @@ async function _colaboradores({ periodo = '' } = {}) {
 
 // ── Servicios ───────────────────────────────────────────────────────────────
 
+/**
+ * Lista de servicios. Es la única lectura que va contra la tabla y no contra la
+ * vista: aquí es donde revisa los borradores, así que aquí tienen que verse.
+ *
+ * `borrador`: 'no' (por defecto) sólo confirmados · 'si' sólo borradores ·
+ * 'todos' las dos cosas.
+ */
 async function _servicios({ periodo = '', clienteId = '', revisar = false,
-  limite = 200, desde = 0 } = {}) {
+  borrador = 'no', limite = 200, desde = 0 } = {}) {
   const filtro = [];
   const args = [];
   if (periodo) { filtro.push('s.periodo = ?'); args.push(periodo); }
   if (clienteId) { filtro.push('s.cliente_id = ?'); args.push(clienteId); }
   if (revisar) filtro.push('s.revisar = 1');
+  if (borrador === 'si') filtro.push('s.borrador = 1');
+  else if (borrador !== 'todos') filtro.push('s.borrador = 0');
 
   // Los nombres son para leer la tabla; los id, para que el formulario de
   // edición pueda preseleccionar a quién estaba asignado sin otra consulta.
@@ -182,12 +197,15 @@ async function _servicios({ periodo = '', clienteId = '', revisar = false,
      LIMIT ? OFFSET ?`, [...args, limite, desde]);
 }
 
-async function _contarServicios({ periodo = '', clienteId = '', revisar = false } = {}) {
+async function _contarServicios({ periodo = '', clienteId = '', revisar = false,
+  borrador = 'no' } = {}) {
   const filtro = [];
   const args = [];
   if (periodo) { filtro.push('periodo = ?'); args.push(periodo); }
   if (clienteId) { filtro.push('cliente_id = ?'); args.push(clienteId); }
   if (revisar) filtro.push('revisar = 1');
+  if (borrador === 'si') filtro.push('borrador = 1');
+  else if (borrador !== 'todos') filtro.push('borrador = 0');
   const f = await consultarUna(
     `SELECT COUNT(*) AS n FROM servicios ${filtro.length ? `WHERE ${filtro.join(' AND ')}` : ''}`,
     args);
@@ -202,6 +220,75 @@ async function _servicio(id) {
   s.colaboradores = await consultar(
     'SELECT colaborador_id AS id, pago FROM servicio_colaborador WHERE servicio_id = ?', [id]);
   return s;
+}
+
+// ── Preparar el mes ─────────────────────────────────────────────────────────
+
+/**
+ * Servicios confirmados de un mes con sus colaboradores, tal y como los
+ * necesita el análisis de recurrencia. Lo usan la vista previa y el generador,
+ * para que los dos miren exactamente lo mismo.
+ */
+async function _serviciosParaRecurrencia(periodo) {
+  const servicios = await consultar(
+    `SELECT s.id, s.cliente_id AS clienteId, c.nombre AS cliente, s.fecha,
+            s.hora, s.horas, s.valor, s.pago_colab AS pagoColab, s.transporte
+       FROM v_servicios s
+       JOIN clientes c ON c.id = s.cliente_id
+      WHERE s.periodo = ?`, [periodo]);
+
+  const enlaces = await consultar(
+    `SELECT sc.servicio_id AS servicio, sc.colaborador_id AS colaborador
+       FROM servicio_colaborador sc
+       JOIN v_servicios s ON s.id = sc.servicio_id
+      WHERE s.periodo = ?`, [periodo]);
+
+  const porServicio = new Map();
+  for (const e of enlaces) {
+    if (!porServicio.has(e.servicio)) porServicio.set(e.servicio, []);
+    porServicio.get(e.servicio).push(e.colaborador);
+  }
+  for (const s of servicios) s.colaboradores = porServicio.get(s.id) ?? [];
+
+  return servicios;
+}
+
+/**
+ * Vista previa: qué se propondría para `destino` copiando de `origen`, sin
+ * escribir nada. Es lo que ve antes de decidir si lo genera.
+ */
+async function _analizarRecurrencia(origen, destino) {
+  const servicios = await _serviciosParaRecurrencia(origen);
+  if (!servicios.length) return null;
+  return proponerMes(servicios, origen, destino);
+}
+
+/** Cuántos borradores y cuántos confirmados tiene un mes. */
+async function _estadoDelMes(periodo) {
+  return consultarUna(
+    `SELECT (SELECT COUNT(*) FROM servicios WHERE periodo = ? AND borrador = 0) AS confirmados,
+            (SELECT COUNT(*) FROM servicios WHERE periodo = ? AND borrador = 1) AS borradores,
+            (SELECT COALESCE(SUM(valor), 0) FROM servicios
+              WHERE periodo = ? AND borrador = 1)                                AS valorBorradores`,
+    [periodo, periodo, periodo]);
+}
+
+/** Meses que tienen borradores pendientes de confirmar. */
+async function _mesesConBorradores() {
+  return consultar(
+    `SELECT periodo, COUNT(*) AS n FROM servicios WHERE borrador = 1
+      GROUP BY periodo ORDER BY periodo`);
+}
+
+/**
+ * El mes anterior con servicios confirmados, que es del que se copia.
+ * No es siempre «el mes de antes»: puede haber huecos.
+ */
+async function _mesAnteriorCon(periodo) {
+  const f = await consultarUna(
+    'SELECT periodo FROM v_servicios WHERE periodo < ? ORDER BY periodo DESC LIMIT 1',
+    [periodo]);
+  return f?.periodo ?? null;
 }
 
 // ── Gastos y costes fijos ───────────────────────────────────────────────────
@@ -247,5 +334,6 @@ async function _pendientes() {
   return consultarUna(`
     SELECT (SELECT COUNT(*) FROM avisos WHERE resuelto = 0)        AS avisos,
            (SELECT COUNT(*) FROM fusiones WHERE estado = 'pendiente') AS fusiones,
-           (SELECT COUNT(*) FROM servicios WHERE revisar = 1)      AS servicios`);
+           (SELECT COUNT(*) FROM v_servicios WHERE revisar = 1)   AS servicios,
+           (SELECT COUNT(*) FROM servicios WHERE borrador = 1)     AS borradores`);
 }

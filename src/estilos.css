@@ -452,6 +452,18 @@ code {
   border: 1px solid color-mix(in srgb, var(--revisar) 30%, transparent);
 }
 
+/* Un borrador es una propuesta, no un hecho. Va en gris y con el borde
+   discontinuo justamente para que no se lea como una fila más: mientras esté
+   así no cuenta en ningún número. */
+.marca--borrador {
+  color: var(--tinta-media);
+  background: var(--papel-alt);
+  border: 1px dashed var(--linea-fuerte);
+}
+
+.fila--borrador :where(th, td) { color: var(--tinta-media); }
+.fila--borrador th[scope="row"] { box-shadow: inset 2px 0 0 var(--linea-fuerte); padding-left: 0.5rem; }
+
 /* ── Propuestas de agrupación ───────────────────────────────────────────── */
 
 .propuestas { list-style: none; margin: 0; padding: 0; }
@@ -792,3 +804,7 @@ code {
   .contenido { padding-inline: 1rem; }
   .formulario { grid-template-columns: 1fr; }
 }
+
+/* Los borradores no son una urgencia como lo que hay que revisar: van en gris,
+   no en ámbar. El color sigue reservado al margen y a lo que pide decisión. */
+.pastilla--tenue { background: var(--linea-fuerte); color: var(--papel); }

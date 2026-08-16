@@ -41,6 +41,40 @@ export default async function Exportar({ searchParams }) {
         <button type="submit" className="boton">Aplicar</button>
       </form>
 
+      <section className="bloque">
+        <div className="bloque__cab">
+          <h3>El mes entero, en un archivo</h3>
+        </div>
+        <p className="bloque__desc">
+          Servicios, resumen por cliente, resumen por colaborador, gastos y el cierre —todo
+          en un solo CSV, en bloques uno debajo de otro. Es la misma maquetación que tenía
+          en Excel: la tabla y, debajo, los totales.
+        </p>
+        <div className="tabla-envoltorio">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th scope="col">Mes</th>
+                <th scope="col"><span className="visualmente-oculto">Descarga</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {listaPeriodos.map((x) => (
+                <tr key={x}>
+                  <th scope="row">{nombrePeriodo(x)}</th>
+                  <td className="acciones-fila">
+                    <a className="boton boton--principal" href={`/api/exportar/mes/${x}`}>
+                      Descargar {nombrePeriodo(x)}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <h2>Por tabla</h2>
       <div className="tabla-envoltorio">
         <table className="tabla">
           <thead>

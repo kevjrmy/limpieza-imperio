@@ -47,3 +47,11 @@ export function nombrePeriodo(periodo) {
   const [a, m] = String(periodo ?? '').split('-');
   return `${MESES_ES[Number(m) - 1] ?? m} ${a}`;
 }
+
+/** '2026-12' → '2027-01'. Sin objetos Date, que aquí sólo traen problemas. */
+export function siguienteMes(periodo) {
+  const [a, m] = String(periodo ?? '').split('-').map(Number);
+  if (!a || !m) return '';
+  const total = a * 12 + (m - 1) + 1;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}

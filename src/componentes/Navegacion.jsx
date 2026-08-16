@@ -3,6 +3,7 @@ import { UserButton } from '@clerk/nextjs';
 
 const SECCIONES = [
   { href: '/', texto: 'Resumen' },
+  { href: '/preparar', texto: 'Preparar mes' },
   { href: '/servicios', texto: 'Servicios' },
   { href: '/clientes', texto: 'Clientes' },
   { href: '/colaboradores', texto: 'Colaboradores' },
@@ -13,6 +14,7 @@ const SECCIONES = [
 
 export default function Navegacion({ pendientes, conSesion }) {
   const porRevisar = (pendientes?.avisos ?? 0) + (pendientes?.fusiones ?? 0);
+  const borradores = pendientes?.borradores ?? 0;
 
   return (
     <header className="cabecera">
@@ -22,7 +24,13 @@ export default function Navegacion({ pendientes, conSesion }) {
 
       <nav className="cabecera__nav" aria-label="Secciones">
         {SECCIONES.map((s) => (
-          <Link key={s.href} href={s.href}>{s.texto}</Link>
+          <Link key={s.href} href={s.href} className={
+            s.href === '/preparar' ? 'cabecera__revisar' : undefined}>
+            {s.texto}
+            {s.href === '/preparar' && borradores > 0 && (
+              <span className="pastilla pastilla--tenue">{borradores}</span>
+            )}
+          </Link>
         ))}
         <Link href="/revisar" className="cabecera__revisar">
           Revisar

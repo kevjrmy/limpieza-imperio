@@ -54,6 +54,37 @@ export function aCSV(filas, columnas) {
   return BOM + lineas.join('\r\n') + '\r\n';
 }
 
+/**
+ * Varios bloques en un mismo archivo, uno debajo de otro.
+ *
+ * Un CSV es una tabla y un mes son cuatro cosas, así que se apilan con su
+ * título encima y una línea en blanco de separación. Es la maquetación que él
+ * ya tenía en Excel —la tabla y, debajo, el bloque de totales—, de modo que al
+ * abrirlo se encuentra con algo conocido.
+ *
+ * @param {Array<{titulo: string, filas: Array, columnas?: Array}>} bloques
+ */
+export function bloquesCSV(bloques) {
+  const partes = [];
+
+  for (const b of bloques) {
+    partes.push(celda(b.titulo));
+
+    if (b.columnas && b.filas.length) {
+      partes.push(b.columnas.map((c) => celda(c.titulo)).join(SEPARADOR));
+      for (const fila of b.filas) {
+        partes.push(b.columnas.map((c) => celda(fila[c.campo])).join(SEPARADOR));
+      }
+    } else if (b.columnas) {
+      partes.push(celda('(no hay)'));
+    }
+
+    partes.push('');
+  }
+
+  return BOM + partes.join('\r\n') + '\r\n';
+}
+
 /** Respuesta de descarga con el nombre de archivo ya puesto. */
 export function respuestaCSV(texto, nombre) {
   return new Response(texto, {

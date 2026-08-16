@@ -243,9 +243,11 @@ ese layout pedía sesión, `/entrar` se redirigía a sí misma y la aplicación
 quedaba inaccesible en cuanto Clerk tuvo claves de verdad.
 
 El registro de Clerk está abierto, así que quien de verdad cierra la puerta es
-`CORREO_AUTORIZADO`: cualquier cuenta que no sea la suya se rechaza en
-`exigirSesion()`. Si algún día se cierra el registro en el panel de Clerk, esa
-variable sigue siendo el segundo cerrojo — no la quites.
+`CORREOS_AUTORIZADOS`: una lista separada por comas, y cualquier cuenta que no
+esté en ella se rechaza en `exigirSesion()`. Ahora mismo hay dos, la del cliente
+y la de desarrollo. **Si la variable se queda vacía, entra cualquiera que se
+registre** — no la borres, y si algún día se cierra el registro en el panel de
+Clerk, sigue siendo el segundo cerrojo.
 
 ## Restricciones técnicas
 

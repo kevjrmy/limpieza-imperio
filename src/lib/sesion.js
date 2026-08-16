@@ -31,11 +31,17 @@ export const clerkConfigurado = Boolean(
 export const enProduccion = process.env.NODE_ENV === 'production';
 
 /**
- * Correo autorizado. El registro se cierra desde el panel de Clerk, pero esto
- * es el cinturón además de los tirantes: aunque alguien lograra crearse una
- * cuenta, sin este correo no entra.
+ * Correos con acceso, separados por comas.
+ *
+ * El registro de Clerk está abierto, así que esta lista es lo que de verdad
+ * cierra la puerta: aunque alguien logre crearse una cuenta, si su correo no
+ * está aquí no entra. Vacía = cualquier cuenta de Clerk vale, que es justo lo
+ * que no queremos.
  */
-export const correoAutorizado = (process.env.CORREO_AUTORIZADO || '').toLowerCase().trim();
+export const correosAutorizados = (process.env.CORREOS_AUTORIZADOS || '')
+  .split(',')
+  .map((c) => c.toLowerCase().trim())
+  .filter(Boolean);
 
 /** Mensaje de por qué no se puede servir, o null si todo está en orden. */
 export function motivoBloqueo() {
@@ -66,13 +72,16 @@ export async function exigirSesion() {
   const { userId, redirectToSignIn } = await auth();
   if (!userId) return redirectToSignIn();
 
-  if (!correoAutorizado) return { userId, correo: null };
+  if (!correosAutorizados.length) return { userId, correo: null };
 
-  const usuario = await currentUser();
-  const correos = (usuario?.emailAddresses ?? []).map((c) => c.emailAddress.toLowerCase());
-  if (!correos.includes(correoAutorizado)) {
+  const suyos = (usuario) => (usuario?.emailAddresses ?? [])
+    .map((c) => c.emailAddress.toLowerCase().trim());
+
+  const correos = suyos(await currentUser());
+  const permitido = correos.find((c) => correosAutorizados.includes(c));
+  if (!permitido) {
     throw new SinPermiso('Esta cuenta no tiene acceso a la contabilidad de Limpiezas El Imperio.');
   }
 
-  return { userId, correo: correoAutorizado };
+  return { userId, correo: permitido };
 }

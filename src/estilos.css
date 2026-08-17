@@ -782,8 +782,13 @@ code {
 
 .acciones-fila { display: flex; gap: 0.5rem; justify-content: flex-end; }
 
-.tabla a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--linea-fuerte); }
-.tabla a:hover { border-bottom-color: var(--tinta); }
+/* Un enlace dentro de una tabla se lee como texto, no como enlace. Los botones
+   quedan fuera a propósito: `.tabla a` (0,1,1) le ganaba a `.boton--principal`
+   (0,1,0), así que el botón negro heredaba la tinta oscura y salía texto oscuro
+   sobre fondo oscuro —ilegible— y encima con una raya debajo. Mismo problema
+   que el de `.num`/`.dinero` de más arriba, misma solución. */
+.tabla :where(a:not(.boton)) { color: inherit; text-decoration: none; border-bottom: 1px solid var(--linea-fuerte); }
+.tabla :where(a:not(.boton)):hover { border-bottom-color: var(--tinta); }
 
 .nota {
   max-width: 68ch;

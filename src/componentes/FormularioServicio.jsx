@@ -33,6 +33,16 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
   };
   const margen = aNumero(valor) - aNumero(pagoColab) - aNumero(transporte);
 
+  // Las listas llegan ordenadas por dinero: `clientes()` por margen y
+  // `colaboradores()` por pago. Eso es lo correcto en sus pantallas —de eso van—
+  // pero aquí son un desplegable donde hay que ENCONTRAR un nombre entre ciento
+  // y pico. Ordenados por rentabilidad no hay forma de buscar nada. Se ordenan
+  // alfabéticamente sólo para elegir, sin tocar las consultas.
+  const porNombre = (lista) => [...lista].sort(
+    (a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  const clientesOrdenados = porNombre(clientes);
+  const colaboradoresOrdenados = porNombre(colaboradores);
+
   function enviar(evento) {
     evento.preventDefault();
     const datos = new FormData(evento.currentTarget);
@@ -84,7 +94,7 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
         <span>Cliente</span>
         <select name="cliente_id" required defaultValue={servicio?.cliente_id ?? ''}>
           <option value="" disabled>Elegir…</option>
-          {clientes.map((c) => (
+          {clientesOrdenados.map((c) => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>
@@ -131,7 +141,7 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
       <label className="campo campo--ancho">
         <span>Quién lo hizo</span>
         <select name="colaboradores" multiple defaultValue={elegidos}>
-          {colaboradores.map((c) => (
+          {colaboradoresOrdenados.map((c) => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>

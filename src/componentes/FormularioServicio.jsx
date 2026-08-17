@@ -23,6 +23,9 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
   const [pagoColab, setPagoColab] = useState(servicio?.pago_colab ?? '');
   const [transporte, setTransporte] = useState(servicio?.transporte ?? '');
 
+  // 'nuevo' = va a escribir un cliente que todavía no está en la lista.
+  const [cliente, setCliente] = useState(String(servicio?.cliente_id ?? ''));
+
   // La consulta devuelve los id asignados como '3,17,42'.
   const elegidos = String(servicio?.colaboradorIds ?? '')
     .split(',').map((t) => t.trim()).filter(Boolean);
@@ -92,13 +95,29 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
 
       <label className="campo">
         <span>Cliente</span>
-        <select name="cliente_id" required defaultValue={servicio?.cliente_id ?? ''}>
+        <select name="cliente_id" required value={cliente}
+          onChange={(e) => setCliente(e.target.value)}>
           <option value="" disabled>Elegir…</option>
+          <option value="nuevo">+ Cliente nuevo…</option>
           {clientesOrdenados.map((c) => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>
       </label>
+
+      {cliente === 'nuevo' && (
+        <label className="campo">
+          <span>Nombre del cliente nuevo</span>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus -- aparece al pedirlo
+              él, y el cursor tiene que estar donde acaba de decir que escribe. */}
+          <input type="text" name="cliente_nuevo" required autoFocus
+            autoComplete="off" placeholder="Tal y como quiera verlo escrito" />
+          <span className="campo__ayuda">
+            Se da de alta al guardar el servicio. Si ese nombre ya existe, se usa
+            el que hay en vez de duplicarlo.
+          </span>
+        </label>
+      )}
 
       <label className="campo">
         <span>Horas</span>

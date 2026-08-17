@@ -93,18 +93,47 @@ async function asignarColaboradores(servicioId, ids, pagoColab) {
   await enLote(sentencias);
 }
 
+/**
+ * Id del cliente del formulario, creándolo si vino escrito a mano.
+ *
+ * Si ese nombre ya existe se reutiliza en vez de duplicarlo: un cliente
+ * repetido parte su historial en dos y eso no se arregla solo. La comparación
+ * es la misma que hace `guardarCliente` —mayúsculas y poco más—; las variantes
+ * con acento o abreviadas las recoge después la tabla `fusiones`, que existe
+ * justo para eso.
+ */
+async function resolverCliente({ clienteId, clienteNuevo }) {
+  if (clienteId) return clienteId;
+
+  const yaEsta = await consultarUna(
+    'SELECT id FROM clientes WHERE UPPER(nombre) = UPPER(?)', [clienteNuevo]);
+  if (yaEsta) return Number(yaEsta.id);
+
+  const { id } = await ejecutar('INSERT INTO clientes (nombre) VALUES (?)', [clienteNuevo]);
+  return Number(id);
+}
+
 function leerServicio(datos) {
   const fecha = txt(datos.get('fecha'));
   const periodo = periodoDe(fecha, datos.get('periodo'));
 
+  // El cliente puede venir elegido de la lista o escrito a mano. Obligarle a
+  // salir a /clientes, crearlo allí y volver era razón suficiente para no
+  // apuntar el servicio: viene de una hoja de cálculo donde un cliente nuevo
+  // era, simplemente, una fila más.
+  const clienteId = Number(datos.get('cliente_id')) || null;
+  const clienteNuevo = txt(datos.get('cliente_nuevo'));
+
   exigir(/^\d{4}-\d{2}$/.test(periodo), 'Falta la fecha o el mes contable.');
-  exigir(Number(datos.get('cliente_id')), 'Hay que elegir un cliente.');
+  exigir(clienteId || clienteNuevo,
+    'Hay que elegir un cliente, o escribir el nombre de uno nuevo.');
 
   return {
     periodo,
     fecha,
     hora: txt(datos.get('hora')),
-    clienteId: Number(datos.get('cliente_id')),
+    clienteId,
+    clienteNuevo,
     horas: num(datos.get('horas')),
     personas: txt(datos.get('personas')) ? Number(num(datos.get('personas'))) : null,
     valor: num(datos.get('valor')),
@@ -119,13 +148,14 @@ function leerServicio(datos) {
 
 export const crearServicio = accion(async (datos) => {
   const s = leerServicio(datos);
+  const clienteId = await resolverCliente(s);
 
   const { id } = await ejecutar(
     `INSERT INTO servicios
        (periodo, fecha, hora, cliente_id, horas, personas, valor,
         pago_colab, transporte, pagado, notas, revisar)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [s.periodo, s.fecha, s.hora, s.clienteId, s.horas, s.personas, s.valor,
+    [s.periodo, s.fecha, s.hora, clienteId, s.horas, s.personas, s.valor,
       s.pagoColab, s.transporte, s.pagado, s.notas, s.revisar],
   );
 
@@ -136,13 +166,14 @@ export const crearServicio = accion(async (datos) => {
 
 export const actualizarServicio = accion(async (id, datos) => {
   const s = leerServicio(datos);
+  const clienteId = await resolverCliente(s);
 
   await ejecutar(
     `UPDATE servicios SET periodo=?, fecha=?, hora=?, cliente_id=?, horas=?,
             personas=?, valor=?, pago_colab=?, transporte=?, pagado=?, notas=?,
             revisar=?, editado_en=datetime('now')
       WHERE id=?`,
-    [s.periodo, s.fecha, s.hora, s.clienteId, s.horas, s.personas, s.valor,
+    [s.periodo, s.fecha, s.hora, clienteId, s.horas, s.personas, s.valor,
       s.pagoColab, s.transporte, s.pagado, s.notas, s.revisar, Number(id)],
   );
 

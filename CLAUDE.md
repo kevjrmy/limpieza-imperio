@@ -7,16 +7,22 @@ explica el porqué de cada decisión; esto es la guía operativa.
 
 | | |
 |---|---|
-| Repositorio | `git@github.com:kevjrmy/limpieza-imperio.git` (privado) |
-| Producción | https://limpieza-imperio.vercel.app |
-| Proyecto en Vercel | `limpieza-imperio`, Root Directory por defecto |
-| Base de datos | Turso (libSQL) — SQLite de verdad, mismo dialecto que en local |
-| Autenticación | Clerk, registro cerrado a un único correo |
+| Repositorio | `limpiezas-el-imperio/limpieza-imperio` (del cliente, el que despliega) y `kevjrmy/limpieza-imperio`. Los dos públicos |
+| Producción | https://limpiezas-imperio.vercel.app |
+| Proyecto en Vercel | en la cuenta del cliente, Root Directory por defecto |
+| Base de datos | Turso (libSQL) en su cuenta — SQLite de verdad, mismo dialecto que en local |
+| Autenticación | Clerk, aún en la cuenta de desarrollo; la puerta la cierra `CORREOS_AUTORIZADOS` |
 
-**Estado:** desplegado y cerrado con llave. Turso sembrado con los ocho meses de
-2026, Clerk pidiendo contraseña, y ninguna ruta devuelve nada sin sesión.
-Pendiente: enseñárselo, y pasar Clerk a instancia de producción (ahora usa
-claves de prueba, `accounts.dev`).
+**Estado:** entregado. Corre en el Vercel del cliente contra su propia base de
+Turso, con los datos migrados y cuadrando. Ninguna ruta devuelve nada sin
+sesión —comprobado sobre el despliegue real, en el HTML crudo, ruta por ruta.
+
+Lo que queda, y por qué no es trivial: **Clerk sigue en claves de prueba**
+(`accounts.dev`) y en la cuenta de desarrollo, no en la suya. Pasarlo a
+producción exige un dominio propio, porque una instancia de producción de Clerk
+necesita registros DNS y un `*.vercel.app` no los admite. Mientras eso siga así,
+**el recurso de Clerk de la cuenta de desarrollo sostiene el login del cliente:
+borrarlo lo deja fuera de su propia aplicación.**
 
 **No importa su Excel.** Se dejó de leer el `.xlsx` en el navegador: la base
 arranca sembrada desde el libro modelo `.ods` y a partir de ahí él edita en la
@@ -27,6 +33,17 @@ herramienta de línea de comandos, no como parte del producto.
 
 **Se trabaja siempre sobre `main`. No crees ramas nuevas nunca**, ni para
 funcionalidades ni para arreglos: commit directo a `main` y push a `origin`.
+
+`origin` tiene una URL de fetch y **dos de push**: el repositorio del cliente y
+el propio. Un solo `git push` va a los dos, e imprime **dos bloques de salida
+que hay que leer los dos**. Vercel despliega desde el del cliente, así que si
+ese falla y el otro no, el push parece haber ido bien y el despliegue se queda
+atrás sin decir nada.
+
+Eso depende de que `kevjrmy` siga siendo colaborador en el repositorio del
+cliente. **No le quites ese acceso.** Ya se perdió una vez, al cambiar la
+visibilidad del repositorio de origen: el permiso venía heredado de la relación
+de fork y se evaporó con ella. Ahora es explícito, que es como debe ser.
 
 ## Regla que no se rompe nunca
 
@@ -260,6 +277,15 @@ prueba, no el archivo.
 - **Agrupar de menos se arregla en pantalla; agrupar de más destruye datos.**
   Las fusiones de nombres están en la tabla `fusiones`, en estado `pendiente`, y
   sólo se aplican cuando él lo dice. Aplicarlas mueve historial y borra filas.
+
+  Esto no es teórico: aceptó las 46 propuestas y una se llevó por delante 40 €.
+  Cuando las dos personas ya estaban en el mismo servicio, la fila de la
+  absorbida se borraba para no chocar con la clave primaria, y ese pago
+  desaparecía. Ahora se **suma** antes de borrar (`aplicarFusion` en
+  `acciones.js`). Los márgenes nunca se vieron afectados —`margen` se calcula
+  sobre `servicios.pago_colab`, que esto no toca—, pero el reparto por persona
+  sí. Lo detectó la consulta de aquí abajo, no una pantalla: si tocas cualquier
+  cosa que escriba en `servicio_colaborador`, ejecútala.
 - El reparto de pagos se hace en **céntimos enteros** (`repartir()` en
   `metricas.js`) para que la suma de las partes cuadre exacta con el pago.
 - **Nada con historial se borra.** Un cliente con servicios o un colaborador con

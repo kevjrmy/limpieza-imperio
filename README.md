@@ -4,11 +4,11 @@ Sistema de contabilidad de Limpiezas El Imperio (La Pobla de Vallbona,
 Valencia). Sustituye a un libro de Excel de 85 pestañas que se mantenía a mano
 cada mes.
 
-**Un solo negocio y un solo usuario.** Frank entra con su cuenta, lleva sus
+**Un solo negocio y un solo usuario.** El dueño entra con su cuenta, lleva sus
 servicios, clientes, colaboradores y gastos, adelanta el mes siguiente a partir
 de lo que se repite, y se lleva el mes entero en un CSV.
 
-**En producción:** https://limpieza-imperio.vercel.app
+**En producción:** https://limpiezas-imperio.vercel.app
 
 Este archivo explica **por qué** cada cosa es como es. `CLAUDE.md` es la guía
 operativa: cómo arrancarlo, qué comprobar y qué no romper.

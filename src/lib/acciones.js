@@ -454,8 +454,21 @@ export const aplicarFusion = accion(async (id) => {
       await ejecutar('UPDATE servicios SET cliente_id = ? WHERE cliente_id = ?',
         [destino.id, origen.id]);
     } else {
-      // Si las dos personas ya estaban en el mismo servicio, la fila del que se
-      // absorbe se descarta: si no, la clave primaria compuesta chocaría.
+      // Si las dos personas ya estaban en el mismo servicio, la clave primaria
+      // compuesta chocaría. El pago del que se absorbe se SUMA al del que se
+      // queda antes de borrar su fila: descartarla sin más perdería ese dinero
+      // y el reparto dejaría de cuadrar con `pago_colab`. Pasó de verdad —
+      // servicio 297, 40 € evaporados al aceptar una fusión.
+      await ejecutar(
+        `UPDATE servicio_colaborador
+            SET pago = ROUND(pago + COALESCE(
+                  (SELECT o.pago FROM servicio_colaborador o
+                    WHERE o.colaborador_id = ?
+                      AND o.servicio_id = servicio_colaborador.servicio_id), 0), 2)
+          WHERE colaborador_id = ?
+            AND servicio_id IN (SELECT servicio_id FROM servicio_colaborador
+                                 WHERE colaborador_id = ?)`,
+        [origen.id, destino.id, origen.id]);
       await ejecutar(
         `DELETE FROM servicio_colaborador
           WHERE colaborador_id = ?

@@ -13,16 +13,20 @@ explica el porqué de cada decisión; esto es la guía operativa.
 | Base de datos | Turso (libSQL) en su cuenta — SQLite de verdad, mismo dialecto que en local |
 | Autenticación | Clerk, aún en la cuenta de desarrollo; la puerta la cierra `CORREOS_AUTORIZADOS` |
 
-**Estado:** entregado. Corre en el Vercel del cliente contra su propia base de
-Turso, con los datos migrados y cuadrando. Ninguna ruta devuelve nada sin
-sesión —comprobado sobre el despliegue real, en el HTML crudo, ruta por ruta.
+**Estado:** entregado y en sus manos. Vercel, GitHub, Turso y Clerk son suyos;
+en la cuenta de desarrollo no queda nada de lo que dependa la aplicación. Los
+datos se migraron y cuadran, y ninguna ruta devuelve nada sin sesión
+—comprobado sobre el despliegue real, en el HTML crudo, ruta por ruta.
 
-Lo que queda, y por qué no es trivial: **Clerk sigue en claves de prueba**
-(`accounts.dev`) y en la cuenta de desarrollo, no en la suya. Pasarlo a
-producción exige un dominio propio, porque una instancia de producción de Clerk
-necesita registros DNS y un `*.vercel.app` no los admite. Mientras eso siga así,
-**el recurso de Clerk de la cuenta de desarrollo sostiene el login del cliente:
-borrarlo lo deja fuera de su propia aplicación.**
+**Sólo hay una base de datos**, la de su cuenta. La vieja se borró a conciencia
+para que nadie la confunda con la buena. El respaldo vive fuera de git, en
+`.datos/`, y es lo único que hay si algo sale mal: trátalo como tal.
+
+Lo que queda, y por qué no es trivial: **Clerk es suyo pero sigue en instancia
+de desarrollo** (`sk_test_`, `accounts.dev` en la URL de entrada). Pasarlo a
+producción exige un dominio propio, porque una instancia de producción necesita
+registros DNS y un `*.vercel.app` no los admite. Funciona y es seguro; sólo se
+nota en que el login pasa por `accounts.dev` y en los límites de uso.
 
 **No importa su Excel.** Se dejó de leer el `.xlsx` en el navegador: la base
 arranca sembrada desde el libro modelo `.ods` y a partir de ahí él edita en la
@@ -111,6 +115,19 @@ npm run dev                            # http://localhost:3000
 Sin `TURSO_DATABASE_URL` la base es un archivo local; con ella, Turso. Es el
 mismo cliente y el mismo SQL en los dos casos, así que lo que se prueba en local
 es lo que corre desplegado.
+
+**En local NO se ponen las variables `TURSO_`.** `.env.local` va sin ellas a
+propósito, para que el desarrollo use `.datos/limpiezas.db` y no haya manera de
+tocar los datos del cliente desde aquí. Tampoco lleva claves de Clerk: sin ellas
+se pasa sin autenticar y la cabecera lo anuncia con una banda.
+
+El motivo no es teórico. **Los scripts de `scripts/` leen `.env.local` y van a
+donde esa variable diga**, así que con Turso configurado un `npm run esquema`
+—que suena inofensivo— se ejecuta contra la base de producción, y
+`npm run sembrar -- --rehacer` la reescribiría entera. Pasó lo primero; lo
+segundo habría sido irreparable. La única base de datos del sistema es la de la
+cuenta del cliente: no hay copia de respaldo en otra cuenta esperando a
+rescatarte.
 
 ## Verificar antes de dar nada por bueno
 

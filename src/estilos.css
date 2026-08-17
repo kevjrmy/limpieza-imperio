@@ -8,6 +8,17 @@
    ========================================================================== */
 
 :root {
+  /* Claro siempre. Lo pidió él, y encaja: esto imita un libro de cuentas, que
+     es tinta sobre papel y no al revés. Además la tarjeta de Clerk en la
+     pantalla de entrada es blanca y no sigue al sistema, así que en oscuro
+     quedaba una tarjeta blanca flotando sobre una página negra.
+
+     `color-scheme` es lo que evita que el navegador pinte por su cuenta en
+     oscuro los desplegables, los campos y la barra de desplazamiento cuando el
+     sistema está en modo oscuro. Sin esto, los `<select>` de los filtros salen
+     negros sobre una página clara. */
+  color-scheme: light;
+
   /* Tinta sobre papel. Los grises hacen todo el trabajo estructural. */
   --papel:        #fbfaf7;
   --papel-alt:    #f4f2ed;
@@ -34,24 +45,10 @@
   --ancho: 78rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --papel:        #161513;
-    --papel-alt:    #1e1d1a;
-    --tinta:        #eeebe5;
-    --tinta-media:  #b3ada3;
-    --tinta-tenue:  #837d74;
-    --linea:        #33312c;
-    --linea-fuerte: #4c4941;
-
-    --margen:       #5fbf8f;
-    --perdida:      #e88b8b;
-    --revisar:      #e0ac52;
-    --revisar-td:   #2a2418;
-
-    --foco:         #7fb0ee;
-  }
-}
+/* Aquí vivía el bloque de `prefers-color-scheme: dark`. Se quitó a propósito:
+   la aplicación va en claro pase lo que pase en el sistema. Si algún día hay
+   que recuperarlo, está en el historial —`git log -S "prefers-color-scheme"`—
+   y habrá que acordarse de la tarjeta de Clerk, que es blanca siempre. */
 
 *, *::before, *::after { box-sizing: border-box; }
 

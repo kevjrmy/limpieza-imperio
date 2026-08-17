@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { auth, currentUser } from '@clerk/nextjs/server';
 
 /**
@@ -40,7 +41,12 @@ export const enProduccion = process.env.NODE_ENV === 'production';
  */
 export const correosAutorizados = (process.env.CORREOS_AUTORIZADOS || '')
   .split(',')
-  .map((c) => c.toLowerCase().trim())
+  // Se quitan comillas además de espacios. Si el valor llega entrecomillado
+  // —lo que pasa al copiarlo tal cual de un `.env`, que sí las lleva— el primer
+  // correo se queda la comilla de apertura y el último la de cierre, dejan de
+  // coincidir con nada y la puerta se cierra para todo el mundo. Pasó, y desde
+  // fuera se veía como un error de servidor sin más.
+  .map((c) => c.replace(/["'\s]/g, '').toLowerCase())
   .filter(Boolean);
 
 /** Mensaje de por qué no se puede servir, o null si todo está en orden. */
@@ -79,9 +85,13 @@ export async function exigirSesion() {
 
   const correos = suyos(await currentUser());
   const permitido = correos.find((c) => correosAutorizados.includes(c));
-  if (!permitido) {
-    throw new SinPermiso('Esta cuenta no tiene acceso a la contabilidad de Limpiezas El Imperio.');
-  }
+
+  // Se manda a una pantalla que lo explica, no se lanza un error. Lanzarlo
+  // acababa en el 500 genérico de Next: la persona veía «A server error
+  // occurred» y no había forma de saber, desde el navegador, que lo que pasaba
+  // era que su cuenta no estaba en la lista. Un rechazo es una respuesta
+  // legítima, no una avería, y tiene que leerse como tal.
+  if (!permitido) redirect('/sin-acceso');
 
   return { userId, correo: permitido };
 }

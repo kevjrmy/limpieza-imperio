@@ -327,6 +327,20 @@ y la de desarrollo. **Si la variable se queda vacía, entra cualquiera que se
 registre** — no la borres, y si algún día se cierra el registro en el panel de
 Clerk, sigue siendo el segundo cerrojo.
 
+**Pégala sin comillas.** Un `.env` guarda el valor entrecomillado; si esas
+comillas llegan al panel de Vercel, el primer correo se queda la de apertura y
+el último la de cierre, dejan de coincidir con nada y no entra nadie —tampoco
+tú—. Pasó al estrenar la instancia de Clerk del cliente y costó un buen rato,
+porque el síntoma era un 500 sin explicación. `correosAutorizados` ya las quita,
+pero eso es una red, no una excusa.
+
+**Una cuenta rechazada va a `/sin-acceso`, no a un error.** Antes se lanzaba una
+excepción y Next la convertía en su 500 genérico: la persona veía «A server
+error occurred» y no había manera de saber desde el navegador que el problema
+era la lista de correos. Esa pantalla cuelga del layout raíz —no de `(panel)`,
+por lo mismo que `/entrar`— y lleva botón de salir, porque sin él quien se
+equivoca de cuenta se queda dentro, rechazado y sin poder probar con otra.
+
 ## Restricciones técnicas
 
 - **`src/proxy.js`, no `middleware.js`.** Next 16 renombró la convención. El

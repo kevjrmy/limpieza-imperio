@@ -12,6 +12,7 @@
     "modelo": "node scripts/modelo-2026.mjs"
   },
   "dependencies": {
+    "@clerk/localizations": "^4.15.3",
     "@clerk/nextjs": "^7.7.6",
     "@libsql/client": "^0.17.4",
     "next": "^16.3.1",

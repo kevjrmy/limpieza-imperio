@@ -1,27 +1,10 @@
-import { ClerkProvider } from '@clerk/nextjs';
-import { esES } from '@clerk/localizations';
-
 import '../estilos.css';
+import ProveedorClerk from '../componentes/ProveedorClerk.jsx';
 import { clerkConfigurado, motivoBloqueo } from '../lib/sesion.js';
 
 export const metadata = {
   title: 'Limpiezas El Imperio',
   description: 'Contabilidad de Limpiezas El Imperio',
-};
-
-/**
- * El castellano de Clerk, con un hueco tapado.
- *
- * `signIn.start.titleCombined` no está traducido en @clerk/localizations, así
- * que Clerk cae al inglés justo en el titular más grande de la pantalla de
- * entrada: «Continue to …». Lo demás del paquete sí viene traducido.
- */
-const ESPANOL = {
-  ...esES,
-  signIn: {
-    ...esES.signIn,
-    start: { ...esES.signIn.start, titleCombined: 'Entrar en {{applicationName}}' },
-  },
 };
 
 export const viewport = {
@@ -55,8 +38,7 @@ export default function RootLayout({ children }) {
 
   if (!clerkConfigurado) return pagina;
 
-  // La pantalla de entrada la pinta Clerk, no nosotros, y venía en inglés:
-  // «Email address», «Password», «Continue». Es la primera pantalla que ve él
-  // cada día y la única de toda la aplicación que no estaba en español.
-  return <ClerkProvider localization={ESPANOL}>{pagina}</ClerkProvider>;
+  // El proveedor va aparte y es de cliente: ver `ProveedorClerk.jsx`. Traer el
+  // diccionario aquí multiplicaba por once el peso de todas las páginas.
+  return <ProveedorClerk>{pagina}</ProveedorClerk>;
 }

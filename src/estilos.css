@@ -757,6 +757,8 @@ code {
 
 .filtros { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: end; }
 .filtros .campo { min-width: 9rem; }
+/* La caja de buscar recibe un nombre entero, no un mes: necesita más sitio. */
+.filtros .campo--busqueda { min-width: 15rem; flex: 1 1 15rem; max-width: 24rem; }
 
 /* ── Ficha de detalle ───────────────────────────────────────────────────── */
 

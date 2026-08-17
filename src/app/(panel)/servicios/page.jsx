@@ -16,9 +16,10 @@ export default async function Servicios({ searchParams }) {
   const periodo = typeof p?.periodo === 'string' ? p.periodo : '';
   const revisar = p?.revisar === '1';
   const borrador = p?.borrador === 'si' ? 'si' : p?.borrador === 'todos' ? 'todos' : 'no';
+  const busqueda = typeof p?.q === 'string' ? p.q.trim() : '';
   const pagina = Math.max(1, Number(p?.pagina) || 1);
 
-  const filtro = { periodo, revisar, borrador };
+  const filtro = { periodo, revisar, borrador, busqueda };
 
   const [lista, total, listaClientes, listaColab, listaPeriodos] = await Promise.all([
     servicios({ ...filtro, limite: POR_PAGINA, desde: (pagina - 1) * POR_PAGINA }),
@@ -34,11 +35,12 @@ export default async function Servicios({ searchParams }) {
 
   const enlace = (cambios) => {
     const q = new URLSearchParams();
-    const v = { periodo, revisar: revisar ? '1' : '', borrador,
+    const v = { periodo, revisar: revisar ? '1' : '', borrador, busqueda,
       pagina: String(pagina), ...cambios };
     if (v.periodo) q.set('periodo', v.periodo);
     if (v.revisar) q.set('revisar', '1');
     if (v.borrador && v.borrador !== 'no') q.set('borrador', v.borrador);
+    if (v.busqueda) q.set('q', v.busqueda);
     if (v.pagina && v.pagina !== '1') q.set('pagina', v.pagina);
     return `/servicios${q.toString() ? `?${q}` : ''}`;
   };
@@ -48,10 +50,11 @@ export default async function Servicios({ searchParams }) {
       <h1>Servicios</h1>
 
       <Filtros ruta="/servicios" periodos={listaPeriodos} periodo={periodo}
-        revisar={revisar} borrador={borrador} conBorrador />
+        revisar={revisar} borrador={borrador} busqueda={busqueda} conBorrador conBusqueda />
 
       <p className="nota-metodo">
         {entero(total)} servicios{periodo && ` en ${nombrePeriodo(periodo)}`}
+        {busqueda && ` con «${busqueda}»`}
         {revisar && ', marcados para revisar'}. En pantalla: {euros(sumaValor)} facturados,{' '}
         {euros(sumaMargen)} de margen.
       </p>

@@ -163,14 +163,19 @@ async function _colaboradores({ periodo = '' } = {}) {
 // ── Servicios ───────────────────────────────────────────────────────────────
 
 /**
- * Lista de servicios. Es la única lectura que va contra la tabla y no contra la
- * vista: aquí es donde revisa los borradores, así que aquí tienen que verse.
+ * Condiciones de la lista de servicios, en un solo sitio porque las usan dos
+ * consultas: la que lista y la que cuenta. Si cada una armara las suyas, la
+ * paginación acabaría diciendo un número y enseñando otro.
  *
  * `borrador`: 'no' (por defecto) sólo confirmados · 'si' sólo borradores ·
  * 'todos' las dos cosas.
+ *
+ * `busqueda` mira el nombre del cliente, el de quien lo hizo y las notas del
+ * servicio: son los tres sitios donde él escribe algo que luego recuerda. El
+ * texto va siempre como parámetro, nunca concatenado al SQL.
  */
-async function _servicios({ periodo = '', clienteId = '', revisar = false,
-  borrador = 'no', limite = 200, desde = 0 } = {}) {
+function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
+  borrador = 'no', busqueda = '' } = {}) {
   const filtro = [];
   const args = [];
   if (periodo) { filtro.push('s.periodo = ?'); args.push(periodo); }
@@ -178,6 +183,25 @@ async function _servicios({ periodo = '', clienteId = '', revisar = false,
   if (revisar) filtro.push('s.revisar = 1');
   if (borrador === 'si') filtro.push('s.borrador = 1');
   else if (borrador !== 'todos') filtro.push('s.borrador = 0');
+  if (busqueda) {
+    filtro.push(`(c.nombre LIKE '%' || ? || '%'
+               OR s.notas LIKE '%' || ? || '%'
+               OR EXISTS (SELECT 1
+                            FROM servicio_colaborador sc
+                            JOIN colaboradores co ON co.id = sc.colaborador_id
+                           WHERE sc.servicio_id = s.id
+                             AND co.nombre LIKE '%' || ? || '%'))`);
+    args.push(busqueda, busqueda, busqueda);
+  }
+  return { donde: filtro.length ? `WHERE ${filtro.join(' AND ')}` : '', args };
+}
+
+/**
+ * Lista de servicios. Es la única lectura que va contra la tabla y no contra la
+ * vista: aquí es donde revisa los borradores, así que aquí tienen que verse.
+ */
+async function _servicios({ limite = 200, desde = 0, ...filtros } = {}) {
+  const { donde, args } = condicionesServicios(filtros);
 
   // Los nombres son para leer la tabla; los id, para que el formulario de
   // edición pueda preseleccionar a quién estaba asignado sin otra consulta.
@@ -192,23 +216,18 @@ async function _servicios({ periodo = '', clienteId = '', revisar = false,
              WHERE sc.servicio_id = s.id) AS colaboradorIds
       FROM servicios s
       JOIN clientes c ON c.id = s.cliente_id
-      ${filtro.length ? `WHERE ${filtro.join(' AND ')}` : ''}
+      ${donde}
      ORDER BY s.fecha DESC, s.id DESC
      LIMIT ? OFFSET ?`, [...args, limite, desde]);
 }
 
-async function _contarServicios({ periodo = '', clienteId = '', revisar = false,
-  borrador = 'no' } = {}) {
-  const filtro = [];
-  const args = [];
-  if (periodo) { filtro.push('periodo = ?'); args.push(periodo); }
-  if (clienteId) { filtro.push('cliente_id = ?'); args.push(clienteId); }
-  if (revisar) filtro.push('revisar = 1');
-  if (borrador === 'si') filtro.push('borrador = 1');
-  else if (borrador !== 'todos') filtro.push('borrador = 0');
-  const f = await consultarUna(
-    `SELECT COUNT(*) AS n FROM servicios ${filtro.length ? `WHERE ${filtro.join(' AND ')}` : ''}`,
-    args);
+async function _contarServicios(filtros = {}) {
+  const { donde, args } = condicionesServicios(filtros);
+  const f = await consultarUna(`
+    SELECT COUNT(*) AS n
+      FROM servicios s
+      JOIN clientes c ON c.id = s.cliente_id
+      ${donde}`, args);
   return f?.n ?? 0;
 }
 

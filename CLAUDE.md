@@ -470,6 +470,26 @@ tú—. Pasó al estrenar la instancia de Clerk del cliente y costó un buen rat
 porque el síntoma era un 500 sin explicación. `correosAutorizados` ya las quita,
 pero eso es una red, no una excusa.
 
+**`/entrar` tiene salida de emergencia, y hace falta.** Puede darse un bucle
+entre dos partes que por separado no hacen nada raro: el navegador cree que
+tiene sesión, el servidor no la ve, `exigirSesion()` manda a `/entrar` con
+`redirect_url=…`, Clerk ve la sesión del navegador y devuelve a la página, y la
+página vuelve a mandar a `/entrar`. Sin parar. Le pasó a él, y no tenía por
+dónde salir: el botón de salir vive dentro de `UserButton`, en la cabecera, así
+que hay que poder cargar una página para llegar a él —justo lo que el bucle
+impide—. Ahora `componentes/Entrada.jsx` mira, **una sola vez al cargar**, si
+llegó rebotado (`redirect_url`) teniendo sesión de navegador; si es así no pinta
+`<SignIn />` —que es quien devolvería el rebote— sino la explicación y un botón
+de salir. Que la decisión se congele no es un detalle: si mirara el estado en
+vivo, al entrar con la contraseña la sesión pasaría a activa y le quitaría a
+`<SignIn />` el redirigir, que es su trabajo.
+
+Esto **tapa el síntoma, no la causa**. La causa es que Clerk sigue en instancia
+de desarrollo: la sesión vive en `accounts.dev`, o sea en un dominio de
+terceros, y el traspaso al servidor depende de cookies entre sitios que Safari
+en el móvil y las protecciones antiseguimiento cortan. Se arregla pasando a
+instancia de producción, que exige dominio propio.
+
 **Una cuenta rechazada va a `/sin-acceso`, no a un error.** Antes se lanzaba una
 excepción y Next la convertía en su 500 genérico: la persona veía «A server
 error occurred» y no había manera de saber desde el navegador que el problema

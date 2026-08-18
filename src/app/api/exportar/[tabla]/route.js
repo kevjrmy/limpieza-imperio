@@ -27,6 +27,7 @@ const TABLAS = {
       { campo: 'periodo', titulo: 'Mes' },
       { campo: 'fecha', titulo: 'Fecha' },
       { campo: 'hora', titulo: 'Hora' },
+      { campo: 'cliente_id', titulo: 'Nº cliente' },
       { campo: 'cliente', titulo: 'Cliente' },
       { campo: 'direccion', titulo: 'Dirección' },
       { campo: 'colaboradores', titulo: 'Colaboradores' },
@@ -41,7 +42,7 @@ const TABLAS = {
       { campo: 'origen', titulo: 'Origen en el Excel' },
     ],
     sql: `
-      SELECT s.periodo, s.fecha, s.hora, c.nombre AS cliente, c.direccion,
+      SELECT s.periodo, s.fecha, s.hora, s.cliente_id, c.nombre AS cliente, c.direccion,
              (SELECT GROUP_CONCAT(co.nombre, ', ') FROM servicio_colaborador sc
                 JOIN colaboradores co ON co.id = sc.colaborador_id
                WHERE sc.servicio_id = s.id) AS colaboradores,
@@ -57,6 +58,7 @@ const TABLAS = {
   clientes: {
     archivo: 'clientes',
     columnas: [
+      { campo: 'id', titulo: 'Nº' },
       { campo: 'nombre', titulo: 'Cliente' },
       { campo: 'direccion', titulo: 'Dirección' },
       { campo: 'telefono', titulo: 'Teléfono' },
@@ -68,7 +70,7 @@ const TABLAS = {
       { campo: 'notas', titulo: 'Notas' },
     ],
     sql: `
-      SELECT c.nombre, c.direccion, c.telefono, c.notas,
+      SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
              COUNT(s.id) AS servicios,
              COALESCE(SUM(s.horas), 0)  AS horas,
              COALESCE(SUM(s.valor), 0)  AS facturado,
@@ -83,6 +85,7 @@ const TABLAS = {
   colaboradores: {
     archivo: 'colaboradores',
     columnas: [
+      { campo: 'id', titulo: 'Nº' },
       { campo: 'nombre', titulo: 'Colaborador' },
       { campo: 'telefono', titulo: 'Teléfono' },
       { campo: 'servicios', titulo: 'Servicios' },
@@ -91,7 +94,7 @@ const TABLAS = {
       { campo: 'ultimo', titulo: 'Último servicio' },
     ],
     sql: `
-      SELECT co.nombre, co.telefono,
+      SELECT co.id, co.nombre, co.telefono,
              COUNT(s.id) AS servicios,
              COALESCE(SUM(s.horas / (SELECT COUNT(*) FROM servicio_colaborador x
                                       WHERE x.servicio_id = s.id)), 0) AS horas,

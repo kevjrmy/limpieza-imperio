@@ -5,7 +5,7 @@ import EditarPersona from '../../../componentes/EditarPersona.jsx';
 import Filtros from '../../../componentes/Filtros.jsx';
 import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
 import { colaboradores, colaborador, periodos } from '../../../lib/consultas.js';
-import { euros, numero, entero, fecha, nombrePeriodo } from '../../../lib/formato.js';
+import { euros, numero, entero, fecha, nombrePeriodo, codigo } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,7 @@ export default async function Colaboradores({ searchParams }) {
       <h1>Colaboradores</h1>
 
       <Filtros ruta="/colaboradores" periodos={listaPeriodos} periodo={periodo}
-        busqueda={busqueda} conRevisar={false} conBusqueda pista="Nombre…" />
+        busqueda={busqueda} conRevisar={false} conBusqueda pista="Nombre o número…" />
 
       <p className="nota-metodo">
         Cuando un servicio lo hacen varias personas, <strong>el pago se reparte a partes
@@ -48,8 +48,9 @@ export default async function Colaboradores({ searchParams }) {
 
       {recien && (
         <AvisoNuevo id={recien.id}>
-          <strong>{recien.nombre}</strong> queda dado de alta. Está al final de la
-          tabla: la lista va por lo cobrado y todavía no ha hecho ningún servicio.
+          <strong>{recien.nombre}</strong> queda dado de alta con el número{' '}
+          <strong>{codigo(recien.id)}</strong>. Está al final de la tabla: la lista va
+          por lo cobrado y todavía no ha hecho ningún servicio.
         </AvisoNuevo>
       )}
 
@@ -67,6 +68,7 @@ export default async function Colaboradores({ searchParams }) {
         <table className="tabla">
           <thead>
             <tr>
+              <th scope="col" className="num">Nº</th>
               <th scope="col">Nombre</th>
               <th scope="col">Teléfono</th>
               <th scope="col" className="num">Servicios</th>
@@ -80,6 +82,7 @@ export default async function Colaboradores({ searchParams }) {
             {lista.map((c) => (
               <tr key={c.id} data-fila={c.id}
                 className={Number(c.id) === nuevo ? 'fila--nueva' : undefined}>
+                <td className="celda-codigo">{codigo(c.id)}</td>
                 <th scope="row" className="celda-nombre">{c.nombre}</th>
                 <td className="celda-nota">{c.telefono}</td>
                 <td className="num">{entero(c.servicios)}</td>

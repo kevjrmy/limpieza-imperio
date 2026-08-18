@@ -20,6 +20,7 @@ import { consultar, consultarUna } from './db.js';
 import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
 import { clave } from './texto.js';
+import { idBuscado } from './formato.js';
 
 /**
  * Buscar sin que los acentos estorben.
@@ -47,6 +48,19 @@ import { clave } from './texto.js';
  * su índice, y una migración.
  */
 const coincide = (texto, aguja) => clave(texto).includes(clave(aguja));
+
+/**
+ * ¿Coincide esta ficha con lo que ha escrito, por nombre o por su número?
+ *
+ * El número es el que se enseña en pantalla («#047»), así que tiene que poder
+ * escribirlo tal cual para llegar a la ficha. Cuando busca por número se busca
+ * SÓLO por número: si escribe 47 quiere el 47, no los cuarenta que llevan un 4
+ * y un 7 en el nombre.
+ */
+function coincideFicha(fila, busqueda) {
+  const id = idBuscado(busqueda);
+  return id === null ? coincide(fila.nombre, busqueda) : Number(fila.id) === id;
+}
 
 /** Envuelve una lectura para que no se ejecute sin sesión válida. */
 function protegida(fn) {
@@ -153,7 +167,7 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
      GROUP BY c.id
      ORDER BY margen DESC, c.nombre`, [periodo]);
 
-  return busqueda ? filas.filter((c) => coincide(c.nombre, busqueda)) : filas;
+  return busqueda ? filas.filter((c) => coincideFicha(c, busqueda)) : filas;
 }
 
 async function _cliente(id) {
@@ -196,7 +210,7 @@ async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
      GROUP BY co.id
      ORDER BY pago DESC, co.nombre`, [periodo]);
 
-  return busqueda ? filas.filter((c) => coincide(c.nombre, busqueda)) : filas;
+  return busqueda ? filas.filter((c) => coincideFicha(c, busqueda)) : filas;
 }
 
 async function _colaborador(id) {
@@ -249,13 +263,18 @@ function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
  */
 async function serviciosQueCoinciden(busqueda) {
   const filas = await consultar(`
-    SELECT s.id, c.nombre AS cliente, s.notas,
+    SELECT s.id, s.cliente_id AS clienteId, c.nombre AS cliente, s.notas,
            (SELECT GROUP_CONCAT(co.nombre, ' · ')
               FROM servicio_colaborador sc
               JOIN colaboradores co ON co.id = sc.colaborador_id
              WHERE sc.servicio_id = s.id) AS quienes
       FROM servicios s
       JOIN clientes c ON c.id = s.cliente_id`);
+
+  const id = idBuscado(busqueda);
+  if (id !== null) {
+    return filas.filter((f) => Number(f.clienteId) === id).map((f) => Number(f.id));
+  }
 
   return filas
     .filter((f) => coincide(f.cliente, busqueda)

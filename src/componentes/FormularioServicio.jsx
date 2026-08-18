@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { crearServicio, actualizarServicio, borrarServicio } from '../lib/acciones.js';
 import { fechaDeHoy } from './formato.js';
 import { useLlevarANuevo } from './rutas.js';
-import { euros } from '../lib/formato.js';
+import { euros, codigo } from '../lib/formato.js';
 
 /**
  * Alta y edición de un servicio.
@@ -43,6 +43,9 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
   // pero aquí son un desplegable donde hay que ENCONTRAR un nombre entre ciento
   // y pico. Ordenados por rentabilidad no hay forma de buscar nada. Se ordenan
   // alfabéticamente sólo para elegir, sin tocar las consultas.
+  // El número va DETRÁS del nombre a propósito: en un <select> se salta a una
+  // opción tecleando sus primeras letras, y anteponer «#047» dejaría inservible
+  // esa forma de buscar, que es la que usa quien conoce los nombres.
   const porNombre = (lista) => [...lista].sort(
     (a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
   const clientesOrdenados = porNombre(clientes);
@@ -106,7 +109,7 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
           <option value="" disabled>Elegir…</option>
           <option value="nuevo">+ Cliente nuevo…</option>
           {clientesOrdenados.map((c) => (
-            <option key={c.id} value={c.id}>{c.nombre}</option>
+            <option key={c.id} value={c.id}>{c.nombre} · {codigo(c.id)}</option>
           ))}
         </select>
       </label>
@@ -167,7 +170,7 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
         <span>Quién lo hizo</span>
         <select name="colaboradores" multiple defaultValue={elegidos}>
           {colaboradoresOrdenados.map((c) => (
-            <option key={c.id} value={c.id}>{c.nombre}</option>
+            <option key={c.id} value={c.id}>{c.nombre} · {codigo(c.id)}</option>
           ))}
         </select>
         <span className="campo__ayuda">

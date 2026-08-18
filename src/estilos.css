@@ -433,6 +433,24 @@ code {
 .dinero--perdida { color: var(--perdida); }
 
 .celda-nombre { font-weight: 500; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+
+/* El número de ficha. Monoespaciado y en gris: es una etiqueta para señalar a
+   una persona entre varias que se llaman parecido, no un dato que se lea al
+   recorrer la tabla. Sin color, que aquí el color es del margen. */
+.celda-codigo {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-tenue);
+  white-space: nowrap;
+}
+
+.titulo__codigo {
+  font-family: var(--mono);
+  font-size: 0.6em;
+  font-weight: 400;
+  color: var(--tinta-tenue);
+  vertical-align: middle;
+}
 .celda-nota { white-space: normal; color: var(--tinta-tenue); font-size: 0.8125rem; }
 
 .fila--perdida th[scope="row"] { box-shadow: inset 2px 0 0 var(--perdida); padding-left: 0.5rem; }

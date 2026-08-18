@@ -18,7 +18,7 @@ import { nombrePeriodo } from '../lib/formato.js';
  */
 export default function Filtros({ ruta, periodos, periodo, revisar, borrador,
   busqueda = '', conRevisar = true, conBorrador = false, conBusqueda = false,
-  pista = 'Cliente, quién o notas…' }) {
+  pista = 'Cliente, quién, notas o nº…' }) {
   const router = useRouter();
   const [texto, setTexto] = useState(busqueda);
 

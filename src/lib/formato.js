@@ -27,6 +27,32 @@ export function porcentaje(parte, total) {
   })} %`;
 }
 
+/**
+ * Número visible de un cliente o de un colaborador: 47 → '#047'.
+ *
+ * Sale del `id`, no de la columna `ref`. `ref` guarda el código del libro
+ * modelo (CLI-001) y **sólo la rellena el sembrador**: todo lo que él da de
+ * alta desde la aplicación la tiene vacía, que es precisamente la gente más
+ * reciente y la más fácil de confundir. El `id` nunca falta, no cambia nunca y
+ * ya es lo que va en la dirección de la ficha, así que «#047» y
+ * `/clientes/47` son lo mismo y se pueden leer el uno del otro.
+ *
+ * Esto NO evita que se creen duplicados —dos fichas de la misma persona
+ * tendrían dos números—: sirve para poder señalar a una en concreto cuando hay
+ * varias que se llaman parecido.
+ */
+export const codigo = (id) => `#${String(Number(id) || 0).padStart(3, '0')}`;
+
+/**
+ * ¿Está buscando por número? Sólo si escribe dígitos y nada más, con o sin
+ * almohadilla: '47', '#47', '047'. Así «3» no se lleva por delante a todos los
+ * que tienen un 3 en el nombre, que sería un buscador inservible.
+ */
+export function idBuscado(busqueda) {
+  const t = String(busqueda ?? '').trim().replace(/^#/, '');
+  return /^\d+$/.test(t) ? Number(t) : null;
+}
+
 /** '2026-05-14' → '14/05/2026'. Sin objetos Date: no hay zonas horarias de por medio. */
 export function fecha(iso) {
   const [a, m, d] = String(iso ?? '').split('-');

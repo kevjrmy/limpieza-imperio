@@ -3,7 +3,7 @@ import Link from 'next/link';
 import FichaPersona from '../../../componentes/FichaPersona.jsx';
 import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
 import { clientes, cliente } from '../../../lib/consultas.js';
-import { euros, numero, entero, porcentaje, fecha } from '../../../lib/formato.js';
+import { euros, numero, entero, porcentaje, fecha, codigo } from '../../../lib/formato.js';
 import { tonoDinero } from '../../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,7 @@ export default async function Clientes({ searchParams }) {
       <form className="filtros" action="/clientes">
         <label className="campo">
           <span>Buscar</span>
-          <input type="search" name="q" defaultValue={busqueda} placeholder="Nombre…" />
+          <input type="search" name="q" defaultValue={busqueda} placeholder="Nombre o número…" />
         </label>
         <button type="submit" className="boton">Buscar</button>
         {busqueda && <Link className="boton boton--plano" href="/clientes">Quitar filtro</Link>}
@@ -38,8 +38,9 @@ export default async function Clientes({ searchParams }) {
 
       {recien && (
         <AvisoNuevo id={recien.id}>
-          <strong>{recien.nombre}</strong> queda dado de alta. Está en la tabla, más
-          abajo de lo que parece: la lista va por margen y todavía no tiene ninguno.
+          <strong>{recien.nombre}</strong> queda dado de alta con el número{' '}
+          <strong>{codigo(recien.id)}</strong>. Está en la tabla, más abajo de lo que
+          parece: la lista va por margen y todavía no tiene ninguno.
         </AvisoNuevo>
       )}
 
@@ -55,6 +56,7 @@ export default async function Clientes({ searchParams }) {
         <table className="tabla">
           <thead>
             <tr>
+              <th scope="col" className="num">Nº</th>
               <th scope="col">Cliente</th>
               <th scope="col">Dirección</th>
               <th scope="col">Teléfono</th>
@@ -71,6 +73,7 @@ export default async function Clientes({ searchParams }) {
               <tr key={c.id} data-fila={c.id}
                 className={[c.margen < 0 ? 'fila--perdida' : '',
                   Number(c.id) === nuevo ? 'fila--nueva' : ''].filter(Boolean).join(' ') || undefined}>
+                <td className="celda-codigo">{codigo(c.id)}</td>
                 <th scope="row" className="celda-nombre">
                   <Link href={`/clientes/${c.id}`}>{c.nombre}</Link>
                 </th>

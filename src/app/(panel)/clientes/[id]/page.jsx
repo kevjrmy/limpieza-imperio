@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import EditarPersona from '../../../../componentes/EditarPersona.jsx';
 import { cliente, serviciosDeCliente } from '../../../../lib/consultas.js';
-import { euros, numero, entero, porcentaje, fecha, nombrePeriodo } from '../../../../lib/formato.js';
+import { euros, numero, entero, porcentaje, fecha, nombrePeriodo, codigo } from '../../../../lib/formato.js';
 import { tonoDinero } from '../../../../componentes/formato.js';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export default async function Cliente({ params }) {
   return (
     <>
       <p className="nota"><Link href="/clientes">← Clientes</Link></p>
-      <h1>{c.nombre}</h1>
+      <h1>{c.nombre} <span className="titulo__codigo">{codigo(c.id)}</span></h1>
 
       <dl className="ficha">
         <div><dt>Dirección</dt><dd>{c.direccion || '—'}</dd></div>

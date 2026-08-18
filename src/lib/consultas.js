@@ -19,6 +19,34 @@
 import { consultar, consultarUna } from './db.js';
 import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
+import { clave } from './texto.js';
+
+/**
+ * Buscar sin que los acentos estorben.
+ *
+ * SQLite compara sin distinguir mayúsculas sólo en ASCII: `LIKE` encuentra
+ * NURIA por «nuria», pero no encuentra NÚRIA. Quien busca no tiene por qué
+ * acordarse de cómo quedó escrito un nombre hace dos años, y aquí hay dos años
+ * de escritura a mano en una comarca donde conviven el castellano y el
+ * valenciano: NÚRIA, TOMÀS, LLUÏSA, GONÇAL.
+ *
+ * El filtrado se hace en JavaScript con `clave()`, que es exactamente como se
+ * comparan los nombres en todo el resto del sistema —el importador, las
+ * propuestas de fusión— así que buscar y agrupar entienden lo mismo por «el
+ * mismo nombre».
+ *
+ * Se intentó antes en SQL, plegando los acentos con REPLACE anidados sobre la
+ * columna. **No cabe**: hacen falta 44 y el analizador de SQLite revienta con
+ * `parser stack overflow` a partir de 29. No lo recortes a los acentos que
+ * parezcan más probables para que quepa; el margen es de cinco y la siguiente
+ * letra rara lo tira, en producción y en todas las búsquedas a la vez.
+ *
+ * Se puede hacer en JS porque son listas cortas —140 clientes, 110
+ * colaboradores, 996 servicios— y sólo se recorren cuando él escribe algo en la
+ * caja. Con dos órdenes de magnitud más, esto sería una columna normalizada con
+ * su índice, y una migración.
+ */
+const coincide = (texto, aguja) => clave(texto).includes(clave(aguja));
 
 /** Envuelve una lectura para que no se ejecute sin sesión válida. */
 function protegida(fn) {
@@ -111,7 +139,7 @@ async function _periodos() {
 // vez de armando el SQL con trozos de cadena. La consulta es siempre la misma,
 // así que se puede leer entera aquí y no hay forma de colar texto en ella.
 async function _clientes({ busqueda = '', periodo = '' } = {}) {
-  return consultar(`
+  const filas = await consultar(`
     SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
            COUNT(s.id)                       AS servicios,
            COALESCE(SUM(s.horas), 0)         AS horas,
@@ -122,9 +150,10 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
       LEFT JOIN v_servicios s
              ON s.cliente_id = c.id
             AND (?1 = '' OR s.periodo = ?1)
-     WHERE (?2 = '' OR c.nombre LIKE '%' || ?2 || '%')
      GROUP BY c.id
-     ORDER BY margen DESC, c.nombre`, [periodo, busqueda]);
+     ORDER BY margen DESC, c.nombre`, [periodo]);
+
+  return busqueda ? filas.filter((c) => coincide(c.nombre, busqueda)) : filas;
 }
 
 async function _cliente(id) {
@@ -148,7 +177,7 @@ async function _serviciosDeCliente(id) {
 // de una persona y lo único que se teclea sin dudar. Va como parámetro, nunca
 // concatenada al SQL.
 async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
-  return consultar(`
+  const filas = await consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
            COUNT(s.id)                               AS servicios,
            -- El pago vive en servicio_colaborador, y el filtro de mes va en el
@@ -164,9 +193,10 @@ async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
       LEFT JOIN v_servicios s
              ON s.id = sc.servicio_id
             AND (?1 = '' OR s.periodo = ?1)
-     WHERE (?2 = '' OR co.nombre LIKE '%' || ?2 || '%')
      GROUP BY co.id
-     ORDER BY pago DESC, co.nombre`, [periodo, busqueda]);
+     ORDER BY pago DESC, co.nombre`, [periodo]);
+
+  return busqueda ? filas.filter((c) => coincide(c.nombre, busqueda)) : filas;
 }
 
 async function _colaborador(id) {
@@ -184,11 +214,13 @@ async function _colaborador(id) {
  * 'todos' las dos cosas.
  *
  * `busqueda` mira el nombre del cliente, el de quien lo hizo y las notas del
- * servicio: son los tres sitios donde él escribe algo que luego recuerda. El
- * texto va siempre como parámetro, nunca concatenado al SQL.
+ * servicio: son los tres sitios donde él escribe algo que luego recuerda. No
+ * entra en el SQL como texto —ni concatenada ni como parámetro—: se resuelve
+ * antes a una lista de id con `serviciosQueCoinciden()`, para poder ignorar los
+ * acentos. Ver el comentario de `coincide` arriba.
  */
 function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
-  borrador = 'no', busqueda = '' } = {}) {
+  borrador = 'no', ids = null } = {}) {
   const filtro = [];
   const args = [];
   if (periodo) { filtro.push('s.periodo = ?'); args.push(periodo); }
@@ -196,25 +228,49 @@ function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
   if (revisar) filtro.push('s.revisar = 1');
   if (borrador === 'si') filtro.push('s.borrador = 1');
   else if (borrador !== 'todos') filtro.push('s.borrador = 0');
-  if (busqueda) {
-    filtro.push(`(c.nombre LIKE '%' || ? || '%'
-               OR s.notas LIKE '%' || ? || '%'
-               OR EXISTS (SELECT 1
-                            FROM servicio_colaborador sc
-                            JOIN colaboradores co ON co.id = sc.colaborador_id
-                           WHERE sc.servicio_id = s.id
-                             AND co.nombre LIKE '%' || ? || '%'))`);
-    args.push(busqueda, busqueda, busqueda);
-  }
+
+  // `ids` null = no se buscó nada. Lista vacía = se buscó y no hay nada, que no
+  // es lo mismo: sin este `0` una búsqueda sin resultados los devolvería todos.
+  if (ids) filtro.push(`s.id IN (${ids.length ? ids.join(',') : '0'})`);
+
   return { donde: filtro.length ? `WHERE ${filtro.join(' AND ')}` : '', args };
+}
+
+/**
+ * Id de los servicios cuyo cliente, notas o gente coinciden con el texto,
+ * ignorando acentos y mayúsculas.
+ *
+ * Los tres campos se comparan por separado a propósito: pegarlos en una sola
+ * cadena haría que «ELENA PRADOS» encontrara un servicio de ELENA cuyas notas
+ * empiezan por «PRADOS», que es una coincidencia inventada.
+ *
+ * Devuelve números salidos de la propia base, así que se pueden interpolar en
+ * el `IN (...)`; el texto que escribe él no llega nunca al SQL.
+ */
+async function serviciosQueCoinciden(busqueda) {
+  const filas = await consultar(`
+    SELECT s.id, c.nombre AS cliente, s.notas,
+           (SELECT GROUP_CONCAT(co.nombre, ' · ')
+              FROM servicio_colaborador sc
+              JOIN colaboradores co ON co.id = sc.colaborador_id
+             WHERE sc.servicio_id = s.id) AS quienes
+      FROM servicios s
+      JOIN clientes c ON c.id = s.cliente_id`);
+
+  return filas
+    .filter((f) => coincide(f.cliente, busqueda)
+      || coincide(f.notas ?? '', busqueda)
+      || coincide(f.quienes ?? '', busqueda))
+    .map((f) => Number(f.id));
 }
 
 /**
  * Lista de servicios. Es la única lectura que va contra la tabla y no contra la
  * vista: aquí es donde revisa los borradores, así que aquí tienen que verse.
  */
-async function _servicios({ limite = 200, desde = 0, ...filtros } = {}) {
-  const { donde, args } = condicionesServicios(filtros);
+async function _servicios({ limite = 200, desde = 0, busqueda = '', ...filtros } = {}) {
+  const ids = busqueda ? await serviciosQueCoinciden(busqueda) : null;
+  const { donde, args } = condicionesServicios({ ...filtros, ids });
 
   // Los nombres son para leer la tabla; los id, para que el formulario de
   // edición pueda preseleccionar a quién estaba asignado sin otra consulta.
@@ -234,8 +290,9 @@ async function _servicios({ limite = 200, desde = 0, ...filtros } = {}) {
      LIMIT ? OFFSET ?`, [...args, limite, desde]);
 }
 
-async function _contarServicios(filtros = {}) {
-  const { donde, args } = condicionesServicios(filtros);
+async function _contarServicios({ busqueda = '', ...filtros } = {}) {
+  const ids = busqueda ? await serviciosQueCoinciden(busqueda) : null;
+  const { donde, args } = condicionesServicios({ ...filtros, ids });
   const f = await consultarUna(`
     SELECT COUNT(*) AS n
       FROM servicios s

@@ -62,6 +62,13 @@ todas partes — ELENA P / ELENA PRADOS / ELENA MOLINA (inicial ambigua),
 BEATRIZ / BEATRIZ SOLANO (apellido único), MARIANO / MARIANA (variante de
 género), LUCIA, TOMAS RIVAS, NURIA (colaboradores).
 
+**«Del libro» quiere decir del libro**: sus clientes y sus colaboradores, que
+son quienes llevan detrás una dirección, un teléfono y algún DNI. El nombre del
+titular no entra en esa regla — dirige una empresa de servicios y su nombre está
+en su propia web. Aparece en el historial de git y se queda ahí; no es un
+hallazgo ni hay que reescribir nada por él. En el código se le sigue llamando
+«él» por costumbre y porque se lee bien, no porque haya que ocultarlo.
+
 Antes de cualquier commit:
 
 ```bash
@@ -405,9 +412,21 @@ equivoca de cuenta se queda dentro, rechazado y sin poder probar con otra.
   claves desconocidas, y los `buildCommand` con rutas relativas fueron la causa
   de varios despliegues rotos (b21d1cd, 9c0b0df). Ya no hacen falta las cabeceras
   COOP/COEP — no hay OPFS.
-- **Comprueba siempre que el despliegue quedó en `Ready`** con
-  `vercel ls limpieza-imperio`. Si falla, Vercel sigue sirviendo el anterior tan
-  ricamente, y la URL responde 200 como si nada.
+- **Comprueba siempre que el despliegue quedó en `Ready`.** Si falla, Vercel
+  sigue sirviendo el anterior tan ricamente, y la URL responde 200 como si nada.
+
+  `vercel ls limpieza-imperio` **ya no sirve**: contesta `project_not_found`
+  porque el proyecto vive en la cuenta del cliente y el CLI de aquí no la
+  alcanza. Sus registros de ejecución tampoco. Lo que sí se ve es el commit
+  status que Vercel publica en su repositorio, que es público:
+
+  ```bash
+  gh api repos/limpiezas-el-imperio/limpieza-imperio/commits/<sha>/status \
+    --jq '.statuses[] | "\(.context): \(.state) — \(.description)"'
+  ```
+
+  Sondéalo hasta que `.state` deje de ser `pending`; tarda del orden de medio
+  minuto.
 - **Después de reconstruir, asegúrate de que el build terminó antes de arrancar
   `next start`.** Un `next start` sobre un `.next` viejo sirve código anterior sin
   decir nada; costó dos diagnósticos falsos, uno de ellos de seguridad.

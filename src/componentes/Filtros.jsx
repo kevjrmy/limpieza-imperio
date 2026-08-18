@@ -17,7 +17,8 @@ import { nombrePeriodo } from '../lib/formato.js';
  * el botón. El resto de páginas lo usan igual, sin nada que enviar.
  */
 export default function Filtros({ ruta, periodos, periodo, revisar, borrador,
-  busqueda = '', conRevisar = true, conBorrador = false, conBusqueda = false }) {
+  busqueda = '', conRevisar = true, conBorrador = false, conBusqueda = false,
+  pista = 'Cliente, quién o notas…' }) {
   const router = useRouter();
   const [texto, setTexto] = useState(busqueda);
 
@@ -74,7 +75,7 @@ export default function Filtros({ ruta, periodos, periodo, revisar, borrador,
         <>
           <label className="campo campo--busqueda">
             <span>Buscar</span>
-            <input type="search" name="q" value={texto} placeholder="Cliente, quién o notas…"
+            <input type="search" name="q" value={texto} placeholder={pista}
               onChange={(e) => setTexto(e.target.value)} />
           </label>
           <button type="submit" className="boton">Buscar</button>

@@ -36,6 +36,7 @@ export const clientes = protegida(_clientes);
 export const cliente = protegida(_cliente);
 export const serviciosDeCliente = protegida(_serviciosDeCliente);
 export const colaboradores = protegida(_colaboradores);
+export const colaborador = protegida(_colaborador);
 export const servicios = protegida(_servicios);
 export const contarServicios = protegida(_contarServicios);
 export const servicio = protegida(_servicio);
@@ -143,7 +144,10 @@ async function _serviciosDeCliente(id) {
 
 // ── Colaboradores ───────────────────────────────────────────────────────────
 
-async function _colaboradores({ periodo = '' } = {}) {
+// La búsqueda mira sólo el nombre, igual que en clientes: es lo que se recuerda
+// de una persona y lo único que se teclea sin dudar. Va como parámetro, nunca
+// concatenada al SQL.
+async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
   return consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
            COUNT(s.id)                               AS servicios,
@@ -160,8 +164,13 @@ async function _colaboradores({ periodo = '' } = {}) {
       LEFT JOIN v_servicios s
              ON s.id = sc.servicio_id
             AND (?1 = '' OR s.periodo = ?1)
+     WHERE (?2 = '' OR co.nombre LIKE '%' || ?2 || '%')
      GROUP BY co.id
-     ORDER BY pago DESC, co.nombre`, [periodo]);
+     ORDER BY pago DESC, co.nombre`, [periodo, busqueda]);
+}
+
+async function _colaborador(id) {
+  return consultarUna('SELECT * FROM colaboradores WHERE id = ?', [id]);
 }
 
 // ── Servicios ───────────────────────────────────────────────────────────────

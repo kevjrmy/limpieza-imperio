@@ -1,8 +1,10 @@
+import Link from 'next/link';
+
 import FichaPersona from '../../../componentes/FichaPersona.jsx';
 import EditarPersona from '../../../componentes/EditarPersona.jsx';
 import Filtros from '../../../componentes/Filtros.jsx';
 import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
-import { colaboradores, periodos } from '../../../lib/consultas.js';
+import { colaboradores, colaborador, periodos } from '../../../lib/consultas.js';
 import { euros, numero, entero, fecha, nombrePeriodo } from '../../../lib/formato.js';
 
 export const dynamic = 'force-dynamic';
@@ -10,9 +12,10 @@ export const dynamic = 'force-dynamic';
 export default async function Colaboradores({ searchParams }) {
   const p = await searchParams;
   const periodo = typeof p?.periodo === 'string' ? p.periodo : '';
+  const busqueda = typeof p?.q === 'string' ? p.q.trim() : '';
 
   const [lista, listaPeriodos] = await Promise.all([
-    colaboradores({ periodo }),
+    colaboradores({ periodo, busqueda }),
     periodos(),
   ]);
 
@@ -22,19 +25,23 @@ export default async function Colaboradores({ searchParams }) {
   // entrar y no ha cobrado nada queda el último de la lista.
   const nuevo = Number(p?.nuevo) || 0;
   const recien = nuevo ? lista.find((c) => Number(c.id) === nuevo) : null;
+  // Y si la búsqueda lo deja fuera, se dice: callar ahí es el mismo problema.
+  const fueraDelFiltro = nuevo && !recien ? await colaborador(nuevo) : null;
 
   return (
     <>
       <h1>Colaboradores</h1>
 
       <Filtros ruta="/colaboradores" periodos={listaPeriodos} periodo={periodo}
-        conRevisar={false} />
+        busqueda={busqueda} conRevisar={false} conBusqueda pista="Nombre…" />
 
       <p className="nota-metodo">
         Cuando un servicio lo hacen varias personas, <strong>el pago se reparte a partes
         iguales</strong> en céntimos enteros: la suma de las partes es exactamente el pago
         del servicio. {periodo && `Filtrado por ${nombrePeriodo(periodo)}. `}
-        Total repartido: {euros(total)}.
+        {busqueda && `Sólo los que llevan «${busqueda}» en el nombre. `}
+        Total repartido: {euros(total)}
+        {busqueda && ' de los que se ven aquí'}.
       </p>
 
       <FichaPersona tipo="colaborador" />
@@ -43,6 +50,16 @@ export default async function Colaboradores({ searchParams }) {
         <AvisoNuevo id={recien.id}>
           <strong>{recien.nombre}</strong> queda dado de alta. Está al final de la
           tabla: la lista va por lo cobrado y todavía no ha hecho ningún servicio.
+        </AvisoNuevo>
+      )}
+
+      {fueraDelFiltro && (
+        <AvisoNuevo id={0}>
+          <strong>{fueraDelFiltro.nombre}</strong> queda dado de alta, pero no sale
+          aquí porque tienes puesto el filtro «{busqueda}».{' '}
+          <Link href={`/colaboradores?nuevo=${fueraDelFiltro.id}`}>
+            Verlo en la lista completa
+          </Link>.
         </AvisoNuevo>
       )}
 
@@ -77,6 +94,10 @@ export default async function Colaboradores({ searchParams }) {
           </tbody>
         </table>
       </div>
+
+      {lista.length === 0 && (
+        <p className="vacio">Ningún colaborador con ese nombre.</p>
+      )}
     </>
   );
 }

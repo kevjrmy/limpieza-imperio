@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { guardarGasto, borrarGasto } from '../lib/acciones.js';
 import { fechaDeHoy } from './formato.js';
+import { intentar } from './intentar.js';
 import { euros, fecha as comoFecha, nombrePeriodo } from '../lib/formato.js';
 
 /**
@@ -26,7 +27,7 @@ export default function PanelGastos({ gastos }) {
     const datos = new FormData(evento.currentTarget);
     setError(null);
     empezar(async () => {
-      const r = await guardarGasto(id, datos);
+      const r = await intentar(() => guardarGasto(id, datos));
       if (r?.error) { setError(r.error); return; }
       router.refresh();
       setEditando(null);
@@ -37,7 +38,7 @@ export default function PanelGastos({ gastos }) {
   function borrar(id) {
     if (!confirm('¿Borrar este gasto?')) return;
     empezar(async () => {
-      const r = await borrarGasto(id);
+      const r = await intentar(() => borrarGasto(id), 'borrar');
       if (r?.error) { setError(r.error); return; }
       router.refresh();
     });

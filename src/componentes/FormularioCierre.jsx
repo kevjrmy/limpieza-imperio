@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { guardarCierre } from '../lib/acciones.js';
+import { intentar } from './intentar.js';
 
 /**
  * Las cargas que él apuntaba a mano bajo la tabla de cada mes: seguridad
@@ -20,7 +21,7 @@ export default function FormularioCierre({ periodo, cierre }) {
     const datos = new FormData(evento.currentTarget);
     setEstado(null);
     empezar(async () => {
-      const r = await guardarCierre(datos);
+      const r = await intentar(() => guardarCierre(datos));
       setEstado(r?.error ? { error: r.error } : { ok: 'Guardado.' });
       if (!r?.error) router.refresh();
     });

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { resolverAviso, aplicarFusion, rechazarFusion } from '../lib/acciones.js';
 import { entero } from '../lib/formato.js';
+import { intentar } from './intentar.js';
 
 /**
  * Lo que quedó pendiente al traerse el Excel.
@@ -25,10 +26,12 @@ export default function PanelRevisar({ avisos, fusiones, resumen }) {
   const [error, setError] = useState(null);
   const [tipoVisible, setTipoVisible] = useState('');
 
-  function hacer(fn, ...args) {
+  // Igual que en /preparar: el verbo lo pone quien llama, porque unir dos
+  // nombres y marcar un aviso como visto no fallan de la misma manera.
+  function hacer(verbo, fn, ...args) {
     setError(null);
     empezar(async () => {
-      const r = await fn(...args);
+      const r = await intentar(() => fn(...args), verbo);
       if (r?.error) { setError(r.error); return; }
       router.refresh();
     });
@@ -76,13 +79,13 @@ export default function PanelRevisar({ avisos, fusiones, resumen }) {
                   <button type="button" className="boton" disabled={enviando}
                     onClick={() => {
                       if (confirm(`Unir todo bajo «${f.quedaria}»? No se puede deshacer.`)) {
-                        hacer(aplicarFusion, f.id);
+                        hacer('unir los dos nombres', aplicarFusion, f.id);
                       }
                     }}>
                     Unir
                   </button>
                   <button type="button" className="boton boton--plano" disabled={enviando}
-                    onClick={() => hacer(rechazarFusion, f.id)}>
+                    onClick={() => hacer('descartar la propuesta', rechazarFusion, f.id)}>
                     Son distintos
                   </button>
                 </div>
@@ -135,7 +138,7 @@ export default function PanelRevisar({ avisos, fusiones, resumen }) {
                     <td className="celda-nota">{a.detalle}</td>
                     <td className="acciones-fila">
                       <button type="button" className="boton boton--plano" disabled={enviando}
-                        onClick={() => hacer(resolverAviso, a.id, true)}>
+                        onClick={() => hacer('marcar el aviso como visto', resolverAviso, a.id, true)}>
                         Visto
                       </button>
                     </td>

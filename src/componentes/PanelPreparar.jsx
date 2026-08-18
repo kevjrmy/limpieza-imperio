@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { generarBorradores, confirmarBorradores, descartarBorradores }
   from '../lib/acciones.js';
 import { nombrePeriodo, euros, entero, siguienteMes } from '../lib/formato.js';
+import { intentar } from './intentar.js';
 
 /**
  * Los tres botones del mes: generar el borrador, confirmarlo y descartarlo.
@@ -20,10 +21,12 @@ export default function PanelPreparar({ destino, origen, estado, resumen, meses 
   const [error, setError] = useState(null);
   const [hecho, setHecho] = useState(null);
 
-  function lanzar(fn, ...args) {
+  // El verbo va delante porque los tres botones hacen cosas distintas y el
+  // mensaje de un fallo tiene que decir cuál de ellas no salió.
+  function lanzar(verbo, fn, ...args) {
     setError(null); setHecho(null);
     empezar(async () => {
-      const r = await fn(...args);
+      const r = await intentar(() => fn(...args), verbo);
       if (r?.error) { setError(r.error); return; }
       setHecho(r);
       router.refresh();
@@ -80,7 +83,7 @@ export default function PanelPreparar({ destino, origen, estado, resumen, meses 
             <button type="button" className="boton boton--principal" disabled={enviando}
               onClick={() => {
                 if (confirm(`¿Confirmar ${estado.borradores} servicios de ${nombrePeriodo(destino)}? A partir de ahí cuentan en el margen y en el cierre.`)) {
-                  lanzar(confirmarBorradores, destino);
+                  lanzar('confirmar el mes', confirmarBorradores, destino);
                 }
               }}>
               {enviando ? 'Confirmando…' : 'Confirmar el mes'}
@@ -88,7 +91,7 @@ export default function PanelPreparar({ destino, origen, estado, resumen, meses 
             <button type="button" className="boton boton--plano" disabled={enviando}
               onClick={() => {
                 if (confirm(`¿Descartar los ${estado.borradores} borradores? Se borran y habría que volver a generarlos.`)) {
-                  lanzar(descartarBorradores, destino);
+                  lanzar('descartar los borradores', descartarBorradores, destino);
                 }
               }}>
               Descartar
@@ -111,7 +114,7 @@ export default function PanelPreparar({ destino, origen, estado, resumen, meses 
           </p>
           <div className="formulario__acciones">
             <button type="button" className="boton boton--principal" disabled={enviando}
-              onClick={() => lanzar(generarBorradores, destino, origen)}>
+              onClick={() => lanzar('generar el borrador', generarBorradores, destino, origen)}>
               {enviando ? 'Generando…' : `Generar borrador de ${nombrePeriodo(destino)}`}
             </button>
           </div>

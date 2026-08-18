@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { crearServicio, actualizarServicio, borrarServicio } from '../lib/acciones.js';
 import { fechaDeHoy } from './formato.js';
 import { useLlevarANuevo } from './rutas.js';
+import { intentar } from './intentar.js';
 import { euros, codigo } from '../lib/formato.js';
 
 /**
@@ -57,9 +58,9 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
     setError(null);
 
     empezar(async () => {
-      const r = servicio
-        ? await actualizarServicio(servicio.id, datos)
-        : await crearServicio(datos);
+      const r = await intentar(() => (servicio
+        ? actualizarServicio(servicio.id, datos)
+        : crearServicio(datos)));
 
       if (r?.error) { setError(r.error); return; }
 
@@ -74,7 +75,7 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
   function borrar() {
     if (!confirm('¿Borrar este servicio? No se puede deshacer.')) return;
     empezar(async () => {
-      const r = await borrarServicio(servicio.id);
+      const r = await intentar(() => borrarServicio(servicio.id), 'borrar');
       if (r?.error) { setError(r.error); return; }
       router.refresh();
       alTerminar?.();

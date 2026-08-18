@@ -95,6 +95,7 @@ src/componentes/  PanelServicios · FormularioServicio · PanelGastos
                   FormularioCierre · Filtros · Navegacion · ProveedorClerk
                   AvisoNuevo (confirma un alta y lleva a su fila)
                   formato.js (tono del dinero, fecha de hoy) · rutas.js
+                  intentar.js (que un fallo al guardar no se quede mudo)
 src/lib/          db.js consultas.js acciones.js sesion.js csv.js esquema.sql
                   recurrencia.js agrupar.js metricas.js texto.js formato.js
                   parser.js
@@ -321,6 +322,27 @@ Cómo funciona ahora, por si añades otra pantalla que cree algo:
 - El aviso va en gris. El color sigue siendo sólo para el margen y para lo que
   hay que revisar; un «guardado» no es ninguna de las dos cosas.
 
+### Un fallo al guardar no puede quedarse mudo
+
+**Toda llamada a una acción de servidor desde un formulario pasa por
+`intentar()` (`componentes/intentar.js`).** Las acciones devuelven `{ error }`
+cuando algo no cuadra y eso ya se enseña; el agujero era el otro caso, el de la
+llamada que ni siquiera llega a ejecutarse. Ahí la promesa revienta en vez de
+devolver nada, y como la llamada vive dentro de un `useTransition` sin `catch`,
+el error se lo tragaba la transición: ni fila nueva, ni mensaje, ni nada.
+Guardar y no guardar se parecían demasiado — el mismo problema que
+`AvisoNuevo`, pero peor, porque esta vez tenía razón: no se había guardado.
+
+Pasa justo el día que se despliega. **Cada despliegue cambia el identificador de
+las acciones de servidor**, así que una pestaña abierta desde antes manda el de
+un build que ya no existe y el servidor la rechaza; con el móvil, además, basta
+con quedarse sin cobertura a media pulsación. Por eso el mensaje dice recargar:
+es lo único que arregla los dos casos.
+
+Si añades un formulario, llama a la acción con `intentar(() => accion(...))`, y
+pásale el verbo cuando no sea «guardar» (`'borrar'`, `'confirmar el mes'`): el
+mensaje tiene que decir qué es lo que no salió.
+
 ## Buscar, y distinguir a dos que se llaman igual
 
 Hay caja de búsqueda en `/servicios`, `/clientes` y `/colaboradores`. Las tres
@@ -480,6 +502,15 @@ equivoca de cuenta se queda dentro, rechazado y sin poder probar con otra.
   claves desconocidas, y los `buildCommand` con rutas relativas fueron la causa
   de varios despliegues rotos (b21d1cd, 9c0b0df). Ya no hacen falta las cabeceras
   COOP/COEP — no hay OPFS.
+- **`next.config.mjs` lleva `deploymentId`, y hace falta.** Sale de
+  `VERCEL_DEPLOYMENT_ID` (con el sha del commit de reserva), así que cambia solo
+  en cada despliegue. Con él, Next cuelga `?dpl=…` de cada archivo estático —el
+  navegador no puede reutilizar el de ayer— y compara la marca del cliente con
+  la suya en cada navegación: si no coinciden, recarga la página entera en vez
+  de seguir ejecutando código viejo. Sin eso, la pestaña que él deja abierta
+  días manda identificadores de acciones de un build que ya no existe y guardar
+  falla; ver *Un fallo al guardar no puede quedarse mudo*. En local las dos
+  variables están vacías y queda `undefined`, que es lo de siempre.
 - **Comprueba siempre que el despliegue quedó en `Ready`.** Si falla, Vercel
   sigue sirviendo el anterior tan ricamente, y la URL responde 200 como si nada.
 

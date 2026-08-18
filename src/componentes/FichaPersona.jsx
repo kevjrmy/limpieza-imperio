@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { guardarCliente, guardarColaborador, borrarCliente, borrarColaborador }
   from '../lib/acciones.js';
 import { useLlevarANuevo } from './rutas.js';
+import { intentar } from './intentar.js';
 
 /**
  * Alta y edición de un cliente o de un colaborador.
@@ -32,7 +33,7 @@ export default function FichaPersona({ tipo, persona, alTerminar }) {
     const datos = new FormData(evento.currentTarget);
     setError(null);
     empezar(async () => {
-      const r = await guardar(persona?.id ?? null, datos);
+      const r = await intentar(() => guardar(persona?.id ?? null, datos));
       if (r?.error) { setError(r.error); return; }
 
       // Al crear, la fila nueva no queda a la vista: estas tablas se ordenan
@@ -46,7 +47,7 @@ export default function FichaPersona({ tipo, persona, alTerminar }) {
   function borrar() {
     if (!confirm(`¿Borrar este ${nombreTipo}?`)) return;
     empezar(async () => {
-      const r = await borrarlo(persona.id);
+      const r = await intentar(() => borrarlo(persona.id), 'borrar');
       if (r?.error) { setError(r.error); return; }
       router.refresh();
       if (esCliente) router.push('/clientes');

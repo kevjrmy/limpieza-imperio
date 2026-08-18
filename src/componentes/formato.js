@@ -14,14 +14,28 @@ export function tonoDinero(n) {
   return '';
 }
 
-/** Mes actual en formato '2026-08', para valores por defecto de formulario. */
-export function periodoDeHoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+/**
+ * Hoy en Valencia, en formato '2026-08-16'.
+ *
+ * El huso va escrito, no heredado. Estos valores por defecto se calculan en el
+ * servidor al renderizar —Vercel corre en UTC— y de ahí salen tal cual al
+ * campo: entre las 00:00 y las 02:00 de aquí, en el servidor todavía es el día
+ * anterior, y el formulario proponía la fecha de ayer. La noche del día 1 eso
+ * no es un día de más o de menos: el mes contable sale de la fecha, así que el
+ * servicio se archivaba en el mes pasado, que ya está cerrado.
+ *
+ * 'sv-SE' se usa porque da el formato ISO (2026-08-16) tal cual, sin montarlo a
+ * mano a partir de las partes.
+ */
+const DIA_ES = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+
+export function fechaDeHoy() {
+  return DIA_ES.format(new Date());
 }
 
-/** Hoy en formato '2026-08-16'. */
-export function fechaDeHoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** Mes actual en formato '2026-08', para valores por defecto de formulario. */
+export function periodoDeHoy() {
+  return fechaDeHoy().slice(0, 7);
 }

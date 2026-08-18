@@ -147,7 +147,11 @@ async function _colaboradores({ periodo = '' } = {}) {
   return consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
            COUNT(s.id)                               AS servicios,
-           COALESCE(SUM(sc.pago), 0)                 AS pago,
+           -- El pago vive en servicio_colaborador, y el filtro de mes va en el
+           -- JOIN con los servicios, no ahí. Sumar sc.pago a secas enseñaba lo
+           -- cobrado en TODOS los meses al lado de los servicios de uno solo:
+           -- al filtrar por un mes, el reparto no cuadraba con nada.
+           COALESCE(SUM(CASE WHEN s.id IS NULL THEN 0 ELSE sc.pago END), 0) AS pago,
            COALESCE(SUM(s.horas / (SELECT COUNT(*) FROM servicio_colaborador x
                                     WHERE x.servicio_id = s.id)), 0) AS horas,
            MAX(s.fecha)                              AS ultimo

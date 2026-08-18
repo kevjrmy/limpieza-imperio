@@ -22,8 +22,11 @@ export default function PanelServicios({ servicios, clientes, colaboradores, nue
   return (
     <>
       <div className="barra-seccion">
+        {/* «en esta página» y no «servicios» a secas: la lista viene paginada de
+            200 en 200, y decir «200 servicios» justo debajo de un «996
+            servicios» es contradecirse en dos líneas. */}
         <p className="bloque__cifra">
-          <strong>{numero(servicios.length)}</strong> servicios
+          <strong>{numero(servicios.length)}</strong> en esta página
         </p>
         <button type="button" className="boton boton--principal"
           onClick={() => { setCreando((v) => !v); setEditando(null); }}>

@@ -80,8 +80,8 @@ En los 996 servicios sembrados: 47.474 € repartidos, descuadre 0,00 €.
 ## Preparar el mes
 
 El negocio es rutinario: alguien va a casa de un cliente todos los lunes, y el
-mes que viene irá otra vez todos los lunes. Frank reescribía a mano ciento y
-pico filas casi idénticas cada mes.
+mes que viene irá otra vez todos los lunes. Él reescribía a mano ciento y pico
+filas casi idénticas cada mes.
 
 `/preparar` mira el mes anterior, encuentra esas rutinas y deja el siguiente
 escrito en **borrador**. Proyectando julio sobre agosto salen **141 servicios

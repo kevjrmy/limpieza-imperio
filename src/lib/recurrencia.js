@@ -2,7 +2,7 @@
  * Detección de lo que se repite cada semana, para adelantar el mes siguiente.
  *
  * El negocio es rutinario: una limpiadora va a casa de un cliente todos los
- * lunes, y el mes que viene irá otra vez todos los lunes. Frank lleva dos años
+ * lunes, y el mes que viene irá otra vez todos los lunes. Él lleva dos años
  * reescribiendo eso a mano, fila por fila. Esto lo propone y él lo corrige.
  *
  * Cómo se decide qué es recurrente, mirando el mes de origen:

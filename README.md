@@ -132,6 +132,11 @@ en cp1252 (`AÑO` → `A?O`, el símbolo del euro roto), con los importes como t
 Comprobado abriéndolo con LibreOffice en locale español: acentos intactos y
 `83,333` leído como el número 83.333.
 
+**Sólo sale lo confirmado**: todas las consultas de exportación leen la vista
+`v_servicios`, que deja fuera los borradores. Los de clientes, colaboradores y
+servicios llevan además la columna `Nº`, para poder cruzar dos archivos sin
+depender de que el nombre esté escrito igual en los dos.
+
 ## Cómo se lee su Excel (sólo para sembrar)
 
 Vale para `modelo-2026.mjs` y `verificar.mjs`, no para la aplicación.
@@ -217,6 +222,37 @@ destruye datos en silencio**. Con la regla del nombre de pila relajada aparecía
 fusiones claramente malas: seis personas distintas colapsadas en una por culpa
 de una aparición del nombre a secas.
 
+### Poder señalar a una
+
+Agrupar de menos deja, a propósito, fichas parecidas conviviendo. Para que eso
+no sea un problema en pantalla, **cada cliente y cada colaborador enseña su
+número** —`#047`— en su tabla, en la ficha, en los desplegables del formulario
+de servicio y en los CSV. Dos `BEATRIZ SOLANO` dejan de ser indistinguibles en
+el momento de elegir, que es donde nacía el duplicado siguiente.
+
+El número sale del `id`, no de la columna `ref`. `ref` guarda el código del
+libro modelo (`CLI-001`) y sólo la rellena el sembrador: lo dado de alta desde
+la aplicación la tiene vacía, o sea justo la gente más reciente. El `id` no
+falta nunca y ya es lo que va en la dirección, así que `#047` y `/clientes/47`
+son el mismo número.
+
+Que quede claro lo que **no** hace: no impide crear duplicados. Dos fichas de la
+misma persona tienen dos números. Sirve para distinguirlas y para decidir sobre
+ellas; unirlas sigue siendo cosa de `/revisar`.
+
+### Buscar
+
+Las tres cajas de búsqueda —servicios, clientes, colaboradores— **ignoran los
+acentos** y aceptan también el número de ficha (`47`, `#47`, `047`). Dos años de
+nombres escritos a mano en una comarca donde conviven el castellano y el
+valenciano dan `NÚRIA`, `TOMÀS`, `LLUÏSA`, `GONÇAL`, y quien busca no tiene por
+qué acordarse de cómo quedó escrito.
+
+El plegado se hace en JavaScript con la misma `clave()` que usa la agrupación,
+de modo que buscar y agrupar entienden lo mismo por «el mismo nombre».
+Intentarlo en SQL no sale: plegar acentos con `REPLACE` anidados pide 44 niveles
+y SQLite corta en 29 con `parser stack overflow`.
+
 ## Autenticación
 
 **Todo detrás del login. No hay parte pública.**
@@ -261,6 +297,10 @@ colaboradores, se trabaja en céntimos enteros.
   proxy sólo deja la sesión disponible; no decide quién entra.
 - **No puede haber una carpeta `app/` en la raíz**: Next la tomaría como
   directorio de rutas en lugar de `src/app`.
+- **Las fechas «de hoy» llevan el huso escrito** (`Europe/Madrid`). Se calculan
+  al renderizar en el servidor, y Vercel corre en UTC: con la hora del proceso,
+  el día 1 a las 00:30 el formulario proponía la fecha de ayer y el servicio se
+  archivaba en el mes anterior, ya cerrado.
 - **`consultas.js` no se puede importar desde un componente de cliente**:
   arrastra el módulo de sesión, que es sólo de servidor. Lo compartido vive en
   `formato.js`, que es puro.

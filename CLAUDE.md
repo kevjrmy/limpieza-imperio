@@ -91,7 +91,10 @@ src/app/          rutas: / · /preparar · /servicios · /clientes
                   api/exportar/[tabla]/route.js
                   api/exportar/mes/[periodo]/route.js
 src/componentes/  PanelServicios · FormularioServicio · PanelGastos
-                  PanelRevisar · FichaPersona · Filtros · Navegacion
+                  PanelPreparar · PanelRevisar · FichaPersona · EditarPersona
+                  FormularioCierre · Filtros · Navegacion · ProveedorClerk
+                  AvisoNuevo (confirma un alta y lleva a su fila)
+                  formato.js (tono del dinero, fecha de hoy) · rutas.js
 src/lib/          db.js consultas.js acciones.js sesion.js csv.js esquema.sql
                   recurrencia.js agrupar.js metricas.js texto.js formato.js
                   parser.js
@@ -262,6 +265,13 @@ hasta que él lo confirma. Eso no depende de acordarse de poner un `WHERE`:
 Si añades una consulta que sume dinero, **lee de `v_servicios`**. Es la misma
 idea que la columna generada del margen: la regla vive en el esquema.
 
+Esto no es una precaución teórica: las exportaciones por tabla de
+`api/exportar/[tabla]` leían `servicios` a pelo y metían borradores en los CSV
+—servicios, clientes, colaboradores y meses— mientras la del mes entero lo hacía
+bien. Con un borrador de 999 € en la base, `exportar/servicios` daba 3 filas y
+1.299 € facturados donde tocaban 2 y 300 €. Un CSV con facturación inventada se
+abre en Excel y ya no recuerda de dónde salió.
+
 Generar se niega si el mes ya tiene servicios confirmados o borradores sin
 resolver: adelantar dos veces el mismo mes duplicaría trabajo hecho, y eso no se
 arregla deshaciendo.
@@ -272,7 +282,11 @@ arregla deshaciendo.
 cliente, resumen por colaborador, gastos, costes fijos y el cierre, en bloques
 uno debajo de otro. Es la maquetación que él ya tenía en Excel —la tabla y,
 debajo, los totales—, así que al abrirlo se encuentra algo conocido. Sólo sale
-lo confirmado.
+lo confirmado, aquí y en las exportaciones por tabla.
+
+Los CSV de clientes, de colaboradores y de servicios llevan la columna `Nº`, que
+es el número de ficha. Es lo que permite cruzar dos exportaciones sin fiarse de
+que el nombre esté escrito igual en las dos.
 
 Comprobado abriéndolo con LibreOffice en locale español: los acentos y la raya
 llegan bien, y `83,333` se lee como número 83.333, no como texto. Si lo pruebas
@@ -306,6 +320,54 @@ Cómo funciona ahora, por si añades otra pantalla que cree algo:
   para ir a verlo. Callar ahí es volver al problema original.
 - El aviso va en gris. El color sigue siendo sólo para el margen y para lo que
   hay que revisar; un «guardado» no es ninguna de las dos cosas.
+
+## Buscar, y distinguir a dos que se llaman igual
+
+Hay caja de búsqueda en `/servicios`, `/clientes` y `/colaboradores`. Las tres
+**ignoran los acentos**, y las tres buscan además **por el número de ficha**.
+
+**El plegado de acentos se hace en JavaScript, con `clave()` de `texto.js`** —
+la misma función con la que el importador y las propuestas de fusión deciden si
+dos nombres son el mismo. Buscar y agrupar entienden lo mismo por «el mismo
+nombre», y eso no es casualidad: que se separen sería un error difícil de ver.
+
+**No lo lleves a SQL.** Se intentó plegando con `REPLACE` anidados sobre la
+columna: hacen falta 44 y SQLite revienta con `parser stack overflow` a partir
+de **29**. El arreglo que apetece —recortar la lista de acentos hasta que quepa—
+deja cinco de margen y lo tira la siguiente letra rara, en producción y en las
+tres búsquedas a la vez. Si alguna vez hay que hacerlo en la base, es una
+columna normalizada con su índice, y una migración.
+
+Se puede filtrar en JS porque son listas cortas: 140 clientes, 110
+colaboradores, 996 servicios, y sólo se recorren cuando él escribe algo.
+
+- En `/clientes` y `/colaboradores` se filtra la lista ya traída.
+- En `/servicios` **no se puede**: hay paginación, y filtrar después haría que el
+  contador dijera un número y la tabla enseñara otro. Allí la búsqueda se
+  resuelve antes a una lista de id (`serviciosQueCoinciden`) y el SQL filtra por
+  ella. Ojo con el caso vacío: `ids = null` es «no buscó nada» y `ids = []` es
+  «buscó y no hay»; sin distinguirlos, una búsqueda sin resultados los devuelve
+  todos.
+
+### El número de ficha
+
+Cada cliente y cada colaborador enseña su número —`#047`— en su tabla, en la
+ficha, en los desplegables del formulario de servicio y en los CSV. Sirve para
+señalar a una persona cuando hay dos que se llaman parecido, que es justo donde
+él se atascaba.
+
+- **Sale del `id`, no de `ref`.** `ref` guarda el código del libro modelo
+  (`CLI-001`) y **sólo la rellena `sembrar.mjs`**: todo lo dado de alta desde la
+  aplicación la tiene a `NULL`. Enseñar `ref` dejaría en blanco justo a la gente
+  más reciente. El `id` no falta nunca y ya es lo que va en la URL, así que
+  `#047` y `/clientes/47` son el mismo número.
+- En el desplegable va **detrás** del nombre. En un `<select>` se salta a una
+  opción tecleando sus primeras letras; un prefijo numérico rompe eso.
+- Buscar dígitos busca **sólo** por número: `3` da el 3, no los cuarenta que
+  llevan un 3 en el nombre. Acepta `47`, `#47` y `047`.
+- **Esto no evita duplicados.** Dos fichas de la misma persona tienen dos
+  números. Sirve para distinguirlas; unirlas sigue siendo cosa de `/revisar`,
+  una a una y decidiéndolo él.
 
 ## Invariantes del dominio
 
@@ -402,6 +464,12 @@ equivoca de cuenta se queda dentro, rechazado y sin poder probar con otra.
 - **`db.js` es lo único que abre la base.** El cliente se crea perezoso y sin
   `Proxy` de por medio: Next evalúa el módulo en tiempo de compilación y crearlo
   arriba revienta el build cuando aún no hay variables de entorno.
+- **Nada de fechas «de hoy» sacadas de la hora del proceso.** Vercel corre en
+  UTC y el navegador está en Madrid, así que entre las 00:00 y las 02:00 no
+  coinciden. `fechaDeHoy()` lleva `Europe/Madrid` escrito. Con la hora del
+  proceso, el día 1 a las 00:30 el servidor proponía la fecha de ayer y —como el
+  mes contable sale de la fecha— el servicio se archivaba en el mes pasado, ya
+  cerrado. Si necesitas otra fecha por defecto, sale de ahí.
 - **`consultas.js` no puede importarse desde un componente de cliente**: arrastra
   `sesion.js`, que es sólo de servidor. Lo compartido (`nombrePeriodo`, formato
   de euros y fechas) vive en `formato.js`, que es puro.

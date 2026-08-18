@@ -1,6 +1,7 @@
 import FichaPersona from '../../../componentes/FichaPersona.jsx';
 import EditarPersona from '../../../componentes/EditarPersona.jsx';
 import Filtros from '../../../componentes/Filtros.jsx';
+import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
 import { colaboradores, periodos } from '../../../lib/consultas.js';
 import { euros, numero, entero, fecha, nombrePeriodo } from '../../../lib/formato.js';
 
@@ -16,6 +17,11 @@ export default async function Colaboradores({ searchParams }) {
   ]);
 
   const total = lista.reduce((a, c) => a + c.pago, 0);
+
+  // Igual que en clientes: la tabla va por lo cobrado, así que quien acaba de
+  // entrar y no ha cobrado nada queda el último de la lista.
+  const nuevo = Number(p?.nuevo) || 0;
+  const recien = nuevo ? lista.find((c) => Number(c.id) === nuevo) : null;
 
   return (
     <>
@@ -33,6 +39,13 @@ export default async function Colaboradores({ searchParams }) {
 
       <FichaPersona tipo="colaborador" />
 
+      {recien && (
+        <AvisoNuevo id={recien.id}>
+          <strong>{recien.nombre}</strong> queda dado de alta. Está al final de la
+          tabla: la lista va por lo cobrado y todavía no ha hecho ningún servicio.
+        </AvisoNuevo>
+      )}
+
       <div className="tabla-envoltorio">
         <table className="tabla">
           <thead>
@@ -48,7 +61,8 @@ export default async function Colaboradores({ searchParams }) {
           </thead>
           <tbody>
             {lista.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} data-fila={c.id}
+                className={Number(c.id) === nuevo ? 'fila--nueva' : undefined}>
                 <th scope="row" className="celda-nombre">{c.nombre}</th>
                 <td className="celda-nota">{c.telefono}</td>
                 <td className="num">{entero(c.servicios)}</td>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { crearServicio, actualizarServicio, borrarServicio } from '../lib/acciones.js';
 import { fechaDeHoy } from './formato.js';
+import { useLlevarANuevo } from './rutas.js';
 import { euros } from '../lib/formato.js';
 
 /**
@@ -16,6 +17,7 @@ import { euros } from '../lib/formato.js';
  */
 export default function FormularioServicio({ servicio, clientes, colaboradores, alTerminar }) {
   const router = useRouter();
+  const llevarANuevo = useLlevarANuevo();
   const [enviando, empezar] = useTransition();
   const [error, setError] = useState(null);
 
@@ -57,7 +59,11 @@ export default function FormularioServicio({ servicio, clientes, colaboradores, 
         : await crearServicio(datos);
 
       if (r?.error) { setError(r.error); return; }
-      router.refresh();
+
+      // Lo recién apuntado tampoco cae arriba: la tabla va por fecha y el mes
+      // en curso ya tiene servicios con fecha posterior a hoy. Se marca en la
+      // URL para señalar la fila y llevarle hasta ella.
+      if (servicio) router.refresh(); else llevarANuevo(r?.id);
       alTerminar?.();
     });
   }

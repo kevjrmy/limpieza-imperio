@@ -272,6 +272,34 @@ llegan bien, y `83,333` se lee como número 83.333, no como texto. Si lo pruebas
 con un locale inglés parecerá roto (`10571,579` → 10571579): es el locale de la
 prueba, no el archivo.
 
+## Lo recién creado tiene que verse
+
+Las tablas se ordenan **por dinero**, no por antigüedad, y eso esconde lo que
+acaba de nacer justo donde él está mirando. Con sus datos reales: un cliente
+nuevo tiene margen 0 y **138 de 140 clientes tienen margen positivo**, así que
+cae en la fila ~139; un colaborador nuevo no ha cobrado nada y **109 de 110
+cobraron algo**, así que queda el último; y un servicio apuntado hoy va detrás
+de los **56 que ya tienen fecha posterior** dentro del mismo mes. Si además hay
+un filtro de mes o de búsqueda puesto, no sale en absoluto.
+
+Se guardaba bien y no se veía. Él lo reportó como «no funciona», y desde su lado
+tenía razón: sin fila a la vista y sin mensaje, guardar y no guardar se parecen
+demasiado. **No lo arregles cambiando el orden de las tablas** —`/clientes` va
+por margen porque de eso va la pantalla—: se arregla señalando.
+
+Cómo funciona ahora, por si añades otra pantalla que cree algo:
+
+- La acción devuelve `{ ok: true, id }`, y el formulario deja ese id en la URL
+  como `?nuevo=<id>` con `useLlevarANuevo()` (`componentes/rutas.js`), sin tocar
+  los filtros que ya hubiera. Va por la URL y no por estado de React para que
+  sobreviva a un refresco.
+- La pantalla lee `nuevo` de `searchParams`, marca esa fila con `data-fila` y
+  `fila--nueva`, y `AvisoNuevo` confirma el alta y desplaza la vista hasta ella.
+- **Si el filtro deja fuera lo recién creado, hay que decirlo** con el enlace
+  para ir a verlo. Callar ahí es volver al problema original.
+- El aviso va en gris. El color sigue siendo sólo para el margen y para lo que
+  hay que revisar; un «guardado» no es ninguna de las dos cosas.
+
 ## Invariantes del dominio
 
 - **El margen es `valor − (pago_colab + transporte)`**, y no se escribe en

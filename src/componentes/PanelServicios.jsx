@@ -15,7 +15,7 @@ import { euros, numero, fecha as comoFecha } from '../lib/formato.js';
  * la que va a pasar el tiempo, y es la que sustituye a desplazarse por una hoja
  * de 224 filas buscando dónde escribir.
  */
-export default function PanelServicios({ servicios, clientes, colaboradores }) {
+export default function PanelServicios({ servicios, clientes, colaboradores, nuevo = 0 }) {
   const [editando, setEditando] = useState(null);
   const [creando, setCreando] = useState(false);
 
@@ -56,7 +56,7 @@ export default function PanelServicios({ servicios, clientes, colaboradores }) {
             </thead>
             <tbody>
               {servicios.map((s) => (
-                <Fila key={s.id} servicio={s}
+                <Fila key={s.id} servicio={s} nuevo={Number(s.id) === nuevo}
                   abierto={editando === s.id}
                   alAbrir={() => { setEditando(editando === s.id ? null : s.id); setCreando(false); }}
                   clientes={clientes} colaboradores={colaboradores}
@@ -70,11 +70,12 @@ export default function PanelServicios({ servicios, clientes, colaboradores }) {
   );
 }
 
-function Fila({ servicio: s, abierto, alAbrir, alCerrar, clientes, colaboradores }) {
+function Fila({ servicio: s, abierto, alAbrir, alCerrar, clientes, colaboradores, nuevo }) {
   return (
     <>
-      <tr className={[s.margen < 0 ? 'fila--perdida' : '',
-        s.borrador ? 'fila--borrador' : ''].filter(Boolean).join(' ') || undefined}>
+      <tr data-fila={s.id} className={[s.margen < 0 ? 'fila--perdida' : '',
+        s.borrador ? 'fila--borrador' : '',
+        nuevo ? 'fila--nueva' : ''].filter(Boolean).join(' ') || undefined}>
         <td>
           {comoFecha(s.fecha) || <span className="tenue">sin fecha</span>}
           {Boolean(s.borrador) && <> <span className="marca marca--borrador">borrador</span></>}

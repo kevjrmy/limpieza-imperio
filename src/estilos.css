@@ -238,6 +238,15 @@ code {
   background: color-mix(in srgb, var(--perdida) 6%, var(--papel));
 }
 
+/* Confirmación de que algo se guardó. Va en gris, sin color: el color de esta
+   aplicación es sólo para el margen y para lo que hay que revisar, y un
+   «hecho» no es ni lo uno ni lo otro. */
+.alerta--hecho {
+  color: var(--tinta-media);
+  border-color: var(--linea-fuerte);
+  background: var(--papel-alt);
+}
+
 /* ── Secciones y bloques ────────────────────────────────────────────────── */
 
 .seccion__titulo {
@@ -460,6 +469,13 @@ code {
 
 .fila--borrador :where(th, td) { color: var(--tinta-media); }
 .fila--borrador th[scope="row"] { box-shadow: inset 2px 0 0 var(--linea-fuerte); padding-left: 0.5rem; }
+
+/* La fila que se acaba de crear. Estas tablas se ordenan por dinero, así que lo
+   recién nacido —sin margen, sin cobros, o con fecha de hoy en un mes que ya
+   llega más lejos— nunca cae donde él está mirando. Se señala con tinta, no con
+   color: es «mira aquí», no «esto va mal». */
+.fila--nueva :where(th, td) { background: var(--papel-alt); }
+.fila--nueva th[scope="row"] { box-shadow: inset 3px 0 0 var(--tinta); padding-left: 0.5rem; }
 
 /* ── Propuestas de agrupación ───────────────────────────────────────────── */
 

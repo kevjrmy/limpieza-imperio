@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
 import FichaPersona from '../../../componentes/FichaPersona.jsx';
-import { clientes } from '../../../lib/consultas.js';
+import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
+import { clientes, cliente } from '../../../lib/consultas.js';
 import { euros, numero, entero, porcentaje, fecha } from '../../../lib/formato.js';
 import { tonoDinero } from '../../../componentes/formato.js';
 
@@ -11,6 +12,14 @@ export default async function Clientes({ searchParams }) {
   const p = await searchParams;
   const busqueda = typeof p?.q === 'string' ? p.q : '';
   const lista = await clientes({ busqueda });
+
+  // Id del cliente recién dado de alta, si viene de guardar. La tabla va por
+  // margen, así que uno nuevo —que no tiene— se hunde hasta el final: sin esto
+  // el alta funciona y no se ve, que desde fuera es lo mismo que no funcionar.
+  const nuevo = Number(p?.nuevo) || 0;
+  const recien = nuevo ? lista.find((c) => Number(c.id) === nuevo) : null;
+  // Si el filtro de búsqueda lo deja fuera, hay que decirlo en vez de callar.
+  const fueraDelFiltro = nuevo && !recien ? await cliente(nuevo) : null;
 
   return (
     <>
@@ -26,6 +35,21 @@ export default async function Clientes({ searchParams }) {
       </form>
 
       <FichaPersona tipo="cliente" />
+
+      {recien && (
+        <AvisoNuevo id={recien.id}>
+          <strong>{recien.nombre}</strong> queda dado de alta. Está en la tabla, más
+          abajo de lo que parece: la lista va por margen y todavía no tiene ninguno.
+        </AvisoNuevo>
+      )}
+
+      {fueraDelFiltro && (
+        <AvisoNuevo id={0}>
+          <strong>{fueraDelFiltro.nombre}</strong> queda dado de alta, pero no sale
+          aquí porque tienes puesto el filtro «{busqueda}».{' '}
+          <Link href={`/clientes?nuevo=${fueraDelFiltro.id}`}>Verlo en la lista completa</Link>.
+        </AvisoNuevo>
+      )}
 
       <div className="tabla-envoltorio">
         <table className="tabla">
@@ -44,7 +68,9 @@ export default async function Clientes({ searchParams }) {
           </thead>
           <tbody>
             {lista.map((c) => (
-              <tr key={c.id} className={c.margen < 0 ? 'fila--perdida' : undefined}>
+              <tr key={c.id} data-fila={c.id}
+                className={[c.margen < 0 ? 'fila--perdida' : '',
+                  Number(c.id) === nuevo ? 'fila--nueva' : ''].filter(Boolean).join(' ') || undefined}>
                 <th scope="row" className="celda-nombre">
                   <Link href={`/clientes/${c.id}`}>{c.nombre}</Link>
                 </th>

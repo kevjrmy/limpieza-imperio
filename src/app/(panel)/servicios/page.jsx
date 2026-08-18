@@ -2,8 +2,9 @@ import Link from 'next/link';
 
 import PanelServicios from '../../../componentes/PanelServicios.jsx';
 import Filtros from '../../../componentes/Filtros.jsx';
+import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
 import {
-  servicios, contarServicios, clientes, colaboradores, periodos
+  servicios, contarServicios, clientes, colaboradores, periodos, servicio
 } from '../../../lib/consultas.js';
 import { euros, entero, nombrePeriodo } from '../../../lib/formato.js';
 
@@ -28,6 +29,14 @@ export default async function Servicios({ searchParams }) {
     colaboradores(),
     periodos(),
   ]);
+
+  // El servicio recién apuntado. No cae arriba del todo: la tabla va por fecha
+  // y el mes en curso ya tiene servicios con fecha posterior a hoy. Y si él
+  // estaba mirando otro mes, directamente no está en esta lista — eso hay que
+  // decirlo, no dejar que parezca que no se guardó.
+  const nuevo = Number(p?.nuevo) || 0;
+  const recien = nuevo ? lista.find((s) => Number(s.id) === nuevo) : null;
+  const fueraDelFiltro = nuevo && !recien ? await servicio(nuevo) : null;
 
   const sumaValor = lista.reduce((a, s) => a + s.valor, 0);
   const sumaMargen = lista.reduce((a, s) => a + s.margen, 0);
@@ -59,8 +68,26 @@ export default async function Servicios({ searchParams }) {
         {euros(sumaMargen)} de margen.
       </p>
 
+      {recien && (
+        <AvisoNuevo id={recien.id}>
+          Servicio de <strong>{recien.cliente}</strong> apuntado, {euros(recien.valor)}.
+          Está señalado en la tabla.
+        </AvisoNuevo>
+      )}
+
+      {fueraDelFiltro && (
+        <AvisoNuevo id={0}>
+          Servicio de <strong>{fueraDelFiltro.cliente}</strong> apuntado en{' '}
+          {nombrePeriodo(fueraDelFiltro.periodo)}, y aquí estás viendo{' '}
+          {periodo ? nombrePeriodo(periodo) : 'otra selección'}: por eso no sale.{' '}
+          <Link href={`/servicios?periodo=${fueraDelFiltro.periodo}&nuevo=${fueraDelFiltro.id}`}>
+            Ver {nombrePeriodo(fueraDelFiltro.periodo)}
+          </Link>.
+        </AvisoNuevo>
+      )}
+
       <PanelServicios servicios={lista} clientes={listaClientes} colaboradores={listaColab}
-        periodo={periodo} />
+        periodo={periodo} nuevo={nuevo} />
 
       {paginas > 1 && (
         <nav className="paginacion" aria-label="Páginas">

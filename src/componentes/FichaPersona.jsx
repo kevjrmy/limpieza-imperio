@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { guardarCliente, guardarColaborador, borrarCliente, borrarColaborador }
   from '../lib/acciones.js';
+import { useLlevarANuevo } from './rutas.js';
 
 /**
  * Alta y edición de un cliente o de un colaborador.
@@ -17,6 +18,7 @@ import { guardarCliente, guardarColaborador, borrarCliente, borrarColaborador }
 export default function FichaPersona({ tipo, persona, alTerminar }) {
   const esCliente = tipo === 'cliente';
   const router = useRouter();
+  const llevarANuevo = useLlevarANuevo();
   const [abierto, setAbierto] = useState(Boolean(persona));
   const [enviando, empezar] = useTransition();
   const [error, setError] = useState(null);
@@ -32,8 +34,12 @@ export default function FichaPersona({ tipo, persona, alTerminar }) {
     empezar(async () => {
       const r = await guardar(persona?.id ?? null, datos);
       if (r?.error) { setError(r.error); return; }
-      router.refresh();
-      if (persona) alTerminar?.(); else setAbierto(false);
+
+      // Al crear, la fila nueva no queda a la vista: estas tablas se ordenan
+      // por dinero y lo que acaba de nacer no tiene ninguno. Se marca en la URL
+      // para que la pantalla la señale y se desplace hasta ella.
+      if (persona) { router.refresh(); alTerminar?.(); }
+      else { setAbierto(false); llevarANuevo(r?.id); }
     });
   }
 

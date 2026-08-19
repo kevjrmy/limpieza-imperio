@@ -262,16 +262,57 @@ acción, cada descarga— y no sólo en el proxy. No es celo: comprobarlo sólo 
 layout **no funciona**. Next renderiza la página aparte del layout, así que un
 layout que decide no pintar `children` igualmente ha ejecutado la página y ha
 serializado su resultado en la carga RSC. Se probó, y por esa vía salían nombres
-y direcciones de clientes en `/servicios`. Es también lo que recomienda Clerk
-desde la v7, que por eso marcó `createRouteMatcher` como obsoleto.
+y direcciones de clientes en `/servicios`. La única barrera que no se puede
+esquivar es la que está pegada a los datos.
 
-Sin claves de Clerk: en local se pasa sin autenticar y **la cabecera lo anuncia
-con una banda**; en producción la aplicación **se niega a servirse**. Son datos
-reales de clientes: quedarse abierta por un despiste de variables de entorno no
-es una opción.
+Sin las variables puestas: en local se pasa sin autenticar y **la cabecera lo
+anuncia con una banda**; en producción la aplicación **se niega a servirse**. Son
+datos reales de clientes: quedarse abierta por un despiste de variables de
+entorno no es una opción.
 
-El registro de Clerk está abierto, así que quien de verdad cierra la puerta es
-la lista `CORREOS_AUTORIZADOS`: cualquier cuenta fuera de ella se rechaza.
+### Un usuario, una contraseña, y nada más
+
+Esto lo llevó Clerk hasta agosto de 2026. Se quitó y se escribió a mano, porque
+Clerk resolvía un problema que este negocio no tiene —registro, invitaciones,
+roles, recuperación por correo, varias organizaciones— y cobraba por ello un
+precio que sí se notaba: la sesión vivía en `accounts.dev`, un dominio de
+terceros, y pasarla al servidor dependía de cookies entre sitios que Safari en
+el móvil corta. De ahí salía el bucle de redirecciones que él sufrió. Y para
+salir de las llaves de prueba hacía falta un dominio propio.
+
+Lo que hay ahora cabe en dos verbos, entrar y salir:
+
+- **Tres variables de entorno.** `USUARIO` es el nombre de usuario —resulta que
+  tiene forma de correo, pero no se le manda ningún correo nunca—, `CLAVE_HASH`
+  es la contraseña pasada por `scrypt`, y `SESION_SECRETO` firma las cookies.
+  Se generan con `npm run clave`.
+- **La base de datos no participa.** No hay tabla de usuarios ni de sesiones: la
+  sesión es una cookie firmada que dice cuándo caduca. Eso significa que la
+  autenticación **no puede escribir nada** en la base del cliente, que es la
+  única copia que existe de su contabilidad. Un fallo aquí puede dejarle fuera;
+  no puede corromperle los datos.
+- **Treinta días deslizantes.** El proxy vuelve a firmar la cookie cuando lleva
+  más de un día emitida, así que usándola nunca vuelve a ver la pantalla de
+  entrada. Sólo caduca tras un mes sin abrirla.
+- **La cookie es de este dominio**, `HttpOnly`, `SameSite=Lax` y `Secure` en
+  cuanto hay https. Sin terceros de por medio, el bucle de antes ya no puede
+  darse: hay una sola fuente de verdad, y si el servidor no reconoce la sesión
+  es que no la hay.
+- **No hay recuperación de contraseña, y es a propósito.** No hay pantalla de
+  perfil, no se cambia la contraseña desde dentro y no se manda ningún correo.
+  Si se pierde, se genera otra con `npm run clave` y se cambia en Vercel.
+- **Cerrar todas las sesiones** = cambiar `SESION_SECRETO` en Vercel. La clave
+  de firma se deriva de las tres variables juntas, así que tocar cualquiera de
+  ellas invalida en el acto todas las cookies emitidas. Es el botón de
+  emergencia si pierde el móvil, y de paso hace que cambiar la contraseña cierre
+  las sesiones abiertas sin que haya que acordarse de nada.
+
+Lo que se pierde respecto a Clerk: no se puede cerrar **una** sesión concreta
+—se cierran todas o ninguna—, no hay segundo factor, y el freno a la fuerza
+bruta se cuenta en memoria del proceso, así que frena a quien pruebe en serie y
+no a quien reparta los intentos entre instancias. Nada de eso sostiene la
+seguridad de esto: la sostiene una contraseña de veinticuatro caracteres
+aleatorios, que son unos 139 bits.
 
 ## Esquema
 
@@ -294,7 +335,10 @@ colaboradores, se trabaja en céntimos enteros.
   en desarrollo. Mismo cliente, mismo dialecto, mismas consultas — lo que se
   prueba en local es lo que corre desplegado.
 - **`src/proxy.js`, no `middleware.js`.** Next 16 renombró la convención. El
-  proxy sólo deja la sesión disponible; no decide quién entra.
+  proxy no decide quién entra: anota la ruta pedida en `x-ruta` —para saber a
+  dónde devolverle después de entrar— y refresca la cookie de sesión. Las dos
+  cosas hay que hacerlas antes de renderizar, y por eso están ahí y no en otro
+  sitio.
 - **No puede haber una carpeta `app/` en la raíz**: Next la tomaría como
   directorio de rutas en lugar de `src/app`.
 - **Las fechas «de hoy» llevan el huso escrito** (`Europe/Madrid`). Se calculan
@@ -318,8 +362,9 @@ colaboradores, se trabaja en céntimos enteros.
 
 ## Lo que queda
 
+- **Poner `USUARIO`, `CLAVE_HASH` y `SESION_SECRETO` en Vercel ANTES de
+  desplegar esto.** El orden no es un detalle: sin las tres, en producción la
+  aplicación se niega a servirse, así que un despliegue por delante de las
+  variables tira la aplicación hasta que se pongan.
 - Enseñárselo, y confirmar con él el criterio del gasto de empresa.
-- Pasar Clerk a instancia de producción: ahora usa claves de prueba
-  (`accounts.dev`), lo que pide un dominio propio.
-- Cerrar el registro en el panel de Clerk, para no depender sólo de la lista de
-  correos autorizados.
+- Darle la contraseña y verle entrar la primera vez desde su móvil.

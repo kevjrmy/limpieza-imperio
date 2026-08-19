@@ -11,22 +11,25 @@ explica el porqué de cada decisión; esto es la guía operativa.
 | Producción | https://limpiezas-imperio.vercel.app |
 | Proyecto en Vercel | en la cuenta del cliente, Root Directory por defecto |
 | Base de datos | Turso (libSQL) en su cuenta — SQLite de verdad, mismo dialecto que en local |
-| Autenticación | Clerk, aún en la cuenta de desarrollo; la puerta la cierra `CORREOS_AUTORIZADOS` |
+| Autenticación | Propia. Un usuario y una contraseña en variables de entorno; la sesión es una cookie firmada. Sin proveedor externo y sin tablas |
 
-**Estado:** entregado y en sus manos. Vercel, GitHub, Turso y Clerk son suyos;
-en la cuenta de desarrollo no queda nada de lo que dependa la aplicación. Los
-datos se migraron y cuadran, y ninguna ruta devuelve nada sin sesión
-—comprobado sobre el despliegue real, en el HTML crudo, ruta por ruta.
+**Estado:** entregado y en sus manos. Vercel, GitHub y Turso son suyos; en la
+cuenta de desarrollo no queda nada de lo que dependa la aplicación. Los datos se
+migraron y cuadran, y ninguna ruta devuelve nada sin sesión —comprobado sobre el
+despliegue real, en el HTML crudo, ruta por ruta.
 
 **Sólo hay una base de datos**, la de su cuenta. La vieja se borró a conciencia
 para que nadie la confunda con la buena. El respaldo vive fuera de git, en
 `.datos/`, y es lo único que hay si algo sale mal: trátalo como tal.
 
-Lo que queda, y por qué no es trivial: **Clerk es suyo pero sigue en instancia
-de desarrollo** (`sk_test_`, `accounts.dev` en la URL de entrada). Pasarlo a
-producción exige un dominio propio, porque una instancia de producción necesita
-registros DNS y un `*.vercel.app` no los admite. Funciona y es seguro; sólo se
-nota en que el login pasa por `accounts.dev` y en los límites de uso.
+**Clerk se quitó en agosto de 2026** y la autenticación se escribió a mano. No
+fue por gusto: Clerk resolvía problemas que este negocio no tiene —registro,
+invitaciones, roles, recuperación por correo— y a cambio dejaba la sesión en
+`accounts.dev`, un dominio de terceros, con lo que el traspaso al servidor
+dependía de cookies entre sitios que Safari en el móvil corta. De ahí salía el
+bucle de redirecciones que él sufrió. Salir de las llaves de prueba, además,
+pedía un dominio propio que no hay. Lo de ahora no necesita ninguna de las dos
+cosas. Ver *Autenticación* más abajo.
 
 **No importa su Excel.** Se dejó de leer el `.xlsx` en el navegador: la base
 arranca sembrada desde el libro modelo `.ods` y a partir de ahí él edita en la
@@ -92,16 +95,19 @@ src/app/          rutas: / · /preparar · /servicios · /clientes
                   api/exportar/mes/[periodo]/route.js
 src/componentes/  PanelServicios · FormularioServicio · PanelGastos
                   PanelPreparar · PanelRevisar · FichaPersona · EditarPersona
-                  FormularioCierre · Filtros · Navegacion · ProveedorClerk
+                  FormularioCierre · Filtros · Navegacion
+                  Entrada (el formulario de entrar) · BotonUsuario (salir)
                   AvisoNuevo (confirma un alta y lleva a su fila)
                   formato.js (tono del dinero, fecha de hoy) · rutas.js
                   intentar.js (que un fallo al guardar no se quede mudo)
-src/lib/          db.js consultas.js acciones.js sesion.js csv.js esquema.sql
+src/lib/          db.js consultas.js acciones.js csv.js esquema.sql
+                  sesion.js (exigirSesion) · acceso.js (entrar y salir)
+                  firma.js (la cookie) · clave.js (scrypt)
                   recurrencia.js agrupar.js metricas.js texto.js formato.js
                   parser.js
 src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
 scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
-                  verificar.mjs · libro-de-prueba.mjs
+                  verificar.mjs · libro-de-prueba.mjs · clave.mjs
 docs/             archivos reales del cliente (fuera de git)
 ```
 
@@ -111,6 +117,8 @@ Reparto de responsabilidades:
   cada función; ver *Autenticación* más abajo.
 - **`db.js`** es lo único que habla con libSQL. Los scripts lo usan directo y
   por eso se saltan la comprobación de sesión, que es lo correcto.
+- **`firma.js` y `clave.js`** no tocan ni Next ni la base: son `node:crypto` y
+  nada más. `firma.js` es lo único de `lib/` que puede importar el proxy.
 - **`parser.js`, `agrupar.js`, `metricas.js`** ya no los usa la interfaz: son
   la herramienta que construye el `.ods` y la que demuestra que sigue cuadrando.
 
@@ -129,8 +137,12 @@ es lo que corre desplegado.
 
 **En local NO se ponen las variables `TURSO_`.** `.env.local` va sin ellas a
 propósito, para que el desarrollo use `.datos/limpiezas.db` y no haya manera de
-tocar los datos del cliente desde aquí. Tampoco lleva claves de Clerk: sin ellas
-se pasa sin autenticar y la cabecera lo anuncia con una banda.
+tocar los datos del cliente desde aquí. Tampoco lleva `USUARIO`, `CLAVE_HASH` ni
+`SESION_SECRETO`: sin ellas se pasa sin autenticar y la cabecera lo anuncia con
+una banda. Si necesitas probar el login de verdad, pásalas en la propia línea de
+órdenes (`USUARIO=… CLAVE_HASH=… SESION_SECRETO=… npx next start`) en vez de
+escribirlas en `.env.local`, y así el modo normal de desarrollo sigue sin pedir
+contraseña.
 
 El motivo no es teórico. **Los scripts de `scripts/` leen `.env.local` y van a
 donde esa variable diga**, así que con Turso configurado un `npm run esquema`
@@ -184,8 +196,10 @@ SELECT ROUND((SELECT SUM(pago) FROM servicio_colaborador), 2)                AS 
 ### Probar que no se escapa nada sin autenticar
 
 Que la página cargue no demuestra nada, y con datos reales dentro esto no es
-opcional. Con un `next build && next start` **sin** claves de Clerk, ninguna
-ruta puede devolver datos del cliente:
+opcional. Hay dos escenarios y los dos hay que pasarlos.
+
+**Sin las variables de autenticación** —`next build && next start` a secas— la
+aplicación no puede servir absolutamente nada:
 
 ```bash
 for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
@@ -193,9 +207,20 @@ for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
 done   # todos tienen que dar 0
 ```
 
+**Con las variables puestas pero sin cookie**, toda ruta tiene que rebotar a
+`/entrar` y no soltar nada por el camino:
+
+```bash
+for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
+  curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "http://localhost:3000$u"
+  curl -s -L "http://localhost:3000$u"            | grep -ci "<un nombre>"
+  curl -s -L -H 'RSC: 1' "http://localhost:3000$u" | grep -ci "<un nombre>"
+done   # 307 hacia /entrar, y ceros en las dos búsquedas
+```
+
 Se comprobó y **falló** la primera vez: mirar sólo la página renderizada engaña,
-porque los datos viajan además en la carga RSC. Por eso hay que buscar en el
-HTML crudo, no en el texto visible.
+porque los datos viajan además en la carga RSC. Por eso se busca en el HTML
+crudo y con la cabecera `RSC: 1`, no en el texto visible.
 
 ## El libro modelo de 2026
 
@@ -435,6 +460,18 @@ señalar a una persona cuando hay dos que se llaman parecido, que es justo donde
 
 ## Autenticación
 
+Un usuario, una contraseña, y nada más. No hay registro, ni invitaciones, ni
+roles, ni segundo factor, ni pantalla de perfil, ni recuperación por correo. Se
+entra y se sale; eso es todo lo que hace.
+
+**Tres variables de entorno, y la base de datos no participa.** `USUARIO` es el
+nombre de usuario (tiene forma de correo, pero no se le manda ningún correo
+nunca), `CLAVE_HASH` es la contraseña pasada por `scrypt` y `SESION_SECRETO`
+firma las cookies. Las genera `npm run clave`. **No hay tabla de usuarios ni de
+sesiones, y no las añadas sin pensarlo dos veces**: que la autenticación no
+pueda escribir en la base es lo que garantiza que un fallo aquí te deje fuera
+pero no te corrompa la contabilidad, que es la única copia que existe.
+
 **La sesión se comprueba en cada recurso que toca datos, no en el proxy.** Está
 envuelto de forma que no se puede olvidar: toda función exportada de
 `consultas.js` y de `acciones.js` pasa por `exigirSesion()`, y la ruta de
@@ -443,64 +480,92 @@ descarga la llama a mano.
 No es celo: **comprobar sólo en el layout no funciona**. Next renderiza la
 página aparte del layout, así que un layout que decide no pintar `children`
 igualmente ha ejecutado la página y ha serializado su resultado en la carga RSC.
-Se probó y por ahí salían nombres y direcciones en `/servicios`. Es también lo
-que recomienda Clerk desde la v7, que por eso marcó `createRouteMatcher` como
-obsoleto.
+Se probó y por ahí salían nombres y direcciones en `/servicios`. La única
+barrera que no se puede esquivar es la que está pegada a los datos.
 
-Sin claves de Clerk: en local se pasa sin autenticar y **la cabecera lo anuncia
-con una banda**; en producción la aplicación se niega a servirse. No quites
-ninguna de las dos cosas.
+Sin las tres variables: en local se pasa sin autenticar y **la cabecera lo
+anuncia con una banda**; en producción la aplicación se niega a servirse. No
+quites ninguna de las dos cosas.
+
+**Pégalas sin comillas.** Un `.env` guarda el valor entrecomillado; si esas
+comillas llegan al panel de Vercel se quedan dentro del valor, deja de coincidir
+con nada y no entra nadie —tampoco tú—. Pasó con `CORREOS_AUTORIZADOS` en
+tiempos de Clerk y costó un buen rato, porque el síntoma era un 500 sin
+explicación. Aquí no hay red que lo recoja: el hash con una comilla pegada
+simplemente no es el hash.
+
+### Cómo está montado
+
+- **`lib/firma.js`** firma y comprueba la cookie. Es puro `node:crypto` y es el
+  **único módulo de `lib/` que puede importar el proxy** — si algún día crece
+  hacia otras dependencias, esa importación es lo primero que hay que revisar.
+- **`lib/clave.js`** hashea con `scrypt`, que viene en Node. Nada de bcrypt ni
+  argon2: son paquetes nativos, y uno que un día deja de compilar en el runtime
+  de Vercel es un despliegue roto por algo ajeno a la contabilidad.
+- **`lib/acceso.js`** tiene las dos acciones, `entrar` y `salir`. Va aparte de
+  `acciones.js` por lo evidente: allí todo pasa por `exigirSesion()`, y entrar
+  es justo lo que no puede exigir sesión.
+- **`lib/sesion.js`** es `exigirSesion()` y poco más.
+- **El proxy** anota la ruta pedida en `x-ruta` —de ahí sale el `?volver=` para
+  devolverle a donde iba— y vuelve a firmar la cookie cuando lleva más de un día
+  emitida. Las dos cosas sólo se pueden hacer antes de renderizar: una cookie no
+  se puede escribir durante el render, y un componente de servidor no sabe su
+  propia URL.
+
+**La clave de firma se deriva de las tres variables juntas**, no es
+`SESION_SECRETO` a secas. Consecuencia buscada: cambiar cualquiera de ellas en
+Vercel invalida en el acto todas las cookies emitidas. **Es el botón de
+emergencia** —si él pierde el móvil, se cambia `SESION_SECRETO`— y de paso hace
+que cambiar la contraseña cierre las sesiones abiertas sin que haya que
+acordarse de nada. No es la única forma de cerrar sesiones: es la única.
+
+**Treinta días deslizantes.** Usándola a diario no vuelve a ver la pantalla de
+entrada; caduca tras un mes sin abrirla.
+
+**El `Secure` de la cookie sale del protocolo de la petición, no de
+`NODE_ENV`.** En Vercel siempre llega `x-forwarded-proto: https`. Pero un
+`next build && next start` en local va por http, y con `Secure` puesto el
+navegador tira la cookie sin decir ni pío: se ve como «entro y me devuelve otra
+vez a entrar», que es de lo más desagradable de diagnosticar. Con `NODE_ENV` de
+respaldo pasaría exactamente eso, porque `next start` en local ya es producción.
 
 **La pantalla de entrada NO puede colgar del layout que exige sesión.** Está
 fuera del grupo `(panel)` justamente por eso: cuando colgaba del layout raíz y
 ese layout pedía sesión, `/entrar` se redirigía a sí misma y la aplicación
-quedaba inaccesible en cuanto Clerk tuvo claves de verdad.
+quedaba inaccesible.
 
-El registro de Clerk está abierto, así que quien de verdad cierra la puerta es
-`CORREOS_AUTORIZADOS`: una lista separada por comas, y cualquier cuenta que no
-esté en ella se rechaza en `exigirSesion()`. Ahora mismo hay dos, la del cliente
-y la de desarrollo. **Si la variable se queda vacía, entra cualquiera que se
-registre** — no la borres, y si algún día se cierra el registro en el panel de
-Clerk, sigue siendo el segundo cerrojo.
+**El bucle de redirecciones ya no puede darse, y por eso se borró su parche.**
+Aquello era: el navegador creía tener sesión, el servidor no la veía, y se
+mandaban el uno al otro sin parar. Existía porque la sesión de Clerk vivía en
+`accounts.dev` y el traspaso al servidor dependía de cookies entre sitios que
+Safari en el móvil corta — dos partes que podían discrepar. Ahora la cookie es
+de este mismo dominio y hay una sola fuente de verdad: si el servidor no
+reconoce la sesión, es que no la hay. **Si algún día vuelve a aparecer un bucle
+entre `/entrar` y el panel, no lo tapes en `Entrada.jsx`**: significa que hay dos
+sitios decidiendo lo mismo, y el error está en el segundo.
 
-**Pégala sin comillas.** Un `.env` guarda el valor entrecomillado; si esas
-comillas llegan al panel de Vercel, el primer correo se queda la de apertura y
-el último la de cierre, dejan de coincidir con nada y no entra nadie —tampoco
-tú—. Pasó al estrenar la instancia de Clerk del cliente y costó un buen rato,
-porque el síntoma era un 500 sin explicación. `correosAutorizados` ya las quita,
-pero eso es una red, no una excusa.
+Por lo mismo desapareció `/sin-acceso`: ya no existe «cuenta identificada pero
+sin permiso». O las credenciales coinciden o no coinciden.
 
-**`/entrar` tiene salida de emergencia, y hace falta.** Puede darse un bucle
-entre dos partes que por separado no hacen nada raro: el navegador cree que
-tiene sesión, el servidor no la ve, `exigirSesion()` manda a `/entrar` con
-`redirect_url=…`, Clerk ve la sesión del navegador y devuelve a la página, y la
-página vuelve a mandar a `/entrar`. Sin parar. Le pasó a él, y no tenía por
-dónde salir: el botón de salir vive dentro de `UserButton`, en la cabecera, así
-que hay que poder cargar una página para llegar a él —justo lo que el bucle
-impide—. Ahora `componentes/Entrada.jsx` mira, **una sola vez al cargar**, si
-llegó rebotado (`redirect_url`) teniendo sesión de navegador; si es así no pinta
-`<SignIn />` —que es quien devolvería el rebote— sino la explicación y un botón
-de salir. Que la decisión se congele no es un detalle: si mirara el estado en
-vivo, al entrar con la contraseña la sesión pasaría a activa y le quitaría a
-`<SignIn />` el redirigir, que es su trabajo.
+### Lo que esto no hace, dicho en voz alta
 
-Esto **tapa el síntoma, no la causa**. La causa es que Clerk sigue en instancia
-de desarrollo: la sesión vive en `accounts.dev`, o sea en un dominio de
-terceros, y el traspaso al servidor depende de cookies entre sitios que Safari
-en el móvil y las protecciones antiseguimiento cortan. Se arregla pasando a
-instancia de producción, que exige dominio propio.
-
-**Una cuenta rechazada va a `/sin-acceso`, no a un error.** Antes se lanzaba una
-excepción y Next la convertía en su 500 genérico: la persona veía «A server
-error occurred» y no había manera de saber desde el navegador que el problema
-era la lista de correos. Esa pantalla cuelga del layout raíz —no de `(panel)`,
-por lo mismo que `/entrar`— y lleva botón de salir, porque sin él quien se
-equivoca de cuenta se queda dentro, rechazado y sin poder probar con otra.
+- **No se puede cerrar una sesión concreta.** Se cierran todas o ninguna.
+- **No hay recuperación.** Si se pierde la contraseña se genera otra con
+  `npm run clave` y se cambia en Vercel. De un hash no sale la contraseña.
+- **El freno a la fuerza bruta se cuenta en memoria del proceso**, así que frena
+  a quien pruebe en serie y no a quien reparta los intentos entre instancias.
+  Nada de esto sostiene la seguridad del sistema: la sostiene una contraseña de
+  veinticuatro caracteres aleatorios, unos 139 bits. **Si alguna vez se cambia
+  por una que él pueda recordar, esa cuenta deja de valer** y entonces sí hace
+  falta un freno de verdad.
 
 ## Restricciones técnicas
 
 - **`src/proxy.js`, no `middleware.js`.** Next 16 renombró la convención. El
-  proxy sólo deja disponible la sesión; no decide quién entra.
+  proxy no decide quién entra: anota la ruta en `x-ruta` y refresca la cookie.
+  Puede importar `lib/firma.js` —y sólo eso— porque desde Next 16 corre en Node;
+  con Clerk no podía importar nada de `lib/`, que es de donde viene la regla
+  vieja.
 - **No crees una carpeta `app/` en la raíz.** Next la tomaría como directorio de
   rutas en lugar de `src/app`.
 - **`db.js` es lo único que abre la base.** El cliente se crea perezoso y sin

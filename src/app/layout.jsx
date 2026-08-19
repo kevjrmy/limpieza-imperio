@@ -1,6 +1,5 @@
 import '../estilos.css';
-import ProveedorClerk from '../componentes/ProveedorClerk.jsx';
-import { clerkConfigurado, motivoBloqueo } from '../lib/sesion.js';
+import { motivoBloqueo } from '../lib/sesion.js';
 
 export const metadata = {
   title: 'Limpiezas El Imperio',
@@ -16,14 +15,18 @@ export const viewport = {
  * Layout raíz: sólo la página en bruto.
  *
  * Aquí NO se comprueba la sesión, y es a propósito: la pantalla de entrada
- * cuelga de este layout, y exigirle sesión la mandaba a sí misma en un bucle de
- * redirecciones. Quien exige sesión es el layout de `(panel)`, que envuelve
+ * cuelga de este layout, y exigirle sesión la mandaría a sí misma en un bucle
+ * de redirecciones. Quien exige sesión es el layout de `(panel)`, que envuelve
  * todo lo demás — y, por debajo, cada consulta y cada acción.
+ *
+ * Lo que sí se corta aquí es servir nada en absoluto si la autenticación no
+ * está montada y esto es producción. Es la última línea antes de dejar la
+ * contabilidad de un negocio abierta a internet por una variable mal puesta.
  */
 export default function RootLayout({ children }) {
   const motivo = motivoBloqueo();
 
-  const pagina = (
+  return (
     <html lang="es">
       <body>
         {motivo ? (
@@ -35,10 +38,4 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   );
-
-  if (!clerkConfigurado) return pagina;
-
-  // El proveedor va aparte y es de cliente: ver `ProveedorClerk.jsx`. Traer el
-  // diccionario aquí multiplicaba por once el peso de todas las páginas.
-  return <ProveedorClerk>{pagina}</ProveedorClerk>;
 }

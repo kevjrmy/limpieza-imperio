@@ -1,97 +1,105 @@
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { auth, currentUser } from '@clerk/nextjs/server';
+
+import { COOKIE, configurada, leerSesion } from './firma.js';
 
 /**
  * Quién puede entrar.
  *
- * La aplicación tiene un único usuario. No hay registro, no hay invitaciones y
- * no hay roles: sólo hay que responder a una pregunta, ¿es él?
+ * La aplicación tiene un único usuario. No hay registro, no hay invitaciones,
+ * no hay roles y no hay recuperación de contraseña: sólo hay que responder a
+ * una pregunta, ¿es él? El usuario y el hash de su contraseña viven en dos
+ * variables de entorno y la base de datos no sabe nada de todo esto.
  *
- * La comprobación se hace en cada recurso que toca datos —el layout que envuelve
- * todas las páginas, cada acción de servidor y cada ruta de descarga— y no sólo
- * en el proxy. Es lo que recomienda el propio Clerk desde la v7, y por un motivo
- * concreto: filtrar por patrones de ruta en el proxy no siempre coincide con
- * cómo Next resuelve las peticiones, y basta un desajuste para dejar accesible
- * algo que se creía protegido.
+ * La comprobación se hace en cada recurso que toca datos —el layout que
+ * envuelve todas las páginas, cada acción de servidor y cada ruta de descarga—
+ * y no sólo en el proxy. El motivo es concreto: Next renderiza la página aparte
+ * del layout, así que un layout que decide no pintar `children` igualmente ha
+ * ejecutado la página y ha serializado su resultado en la carga RSC. Se probó,
+ * y por ahí salían nombres y direcciones en /servicios. La única barrera que no
+ * se puede esquivar es la que está pegada a los datos.
  *
  * Dos comportamientos deliberados:
  *
- *  · Sin Clerk configurado y en producción, la aplicación NO se sirve. Esto es
+ *  · Sin configurar y en producción, la aplicación NO se sirve. Esto es
  *    contabilidad real con nombres, direcciones y teléfonos: quedarse abierta
  *    al mundo por un despiste de variables de entorno no es una opción.
  *
- *  · Sin Clerk configurado en local, se pasa sin autenticar para poder
- *    trabajar, pero la interfaz lo anuncia con una banda imposible de no ver.
- *    La regla de la casa: avisar, nunca disimular.
+ *  · Sin configurar en local, se pasa sin autenticar para poder trabajar, pero
+ *    la interfaz lo anuncia con una banda imposible de no ver. La regla de la
+ *    casa: avisar, nunca disimular.
  */
-
-export const clerkConfigurado = Boolean(
-  process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-);
-
-export const enProduccion = process.env.NODE_ENV === 'production';
 
 /**
- * Correos con acceso, separados por comas.
+ * ¿Hay autenticación montada?
  *
- * El registro de Clerk está abierto, así que esta lista es lo que de verdad
- * cierra la puerta: aunque alguien logre crearse una cuenta, si su correo no
- * está aquí no entra. Vacía = cualquier cuenta de Clerk vale, que es justo lo
- * que no queremos.
+ * Es una función y no una constante a propósito: Next evalúa los módulos en
+ * tiempo de compilación, y una constante que lea `process.env` arriba del todo
+ * se queda con lo que hubiera en el build. Lo mismo que pasa con el cliente de
+ * la base en `db.js`.
  */
-export const correosAutorizados = (process.env.CORREOS_AUTORIZADOS || '')
-  .split(',')
-  // Se quitan comillas además de espacios. Si el valor llega entrecomillado
-  // —lo que pasa al copiarlo tal cual de un `.env`, que sí las lleva— el primer
-  // correo se queda la comilla de apertura y el último la de cierre, dejan de
-  // coincidir con nada y la puerta se cierra para todo el mundo. Pasó, y desde
-  // fuera se veía como un error de servidor sin más.
-  .map((c) => c.replace(/["'\s]/g, '').toLowerCase())
-  .filter(Boolean);
+export const autenticacionConfigurada = configurada;
+
+const enProduccion = process.env.NODE_ENV === 'production';
+
+/** El usuario configurado, para enseñarlo. Nunca la contraseña, claro. */
+function usuarioConfigurado() {
+  return (process.env.USUARIO || '').trim();
+}
 
 /** Mensaje de por qué no se puede servir, o null si todo está en orden. */
 export function motivoBloqueo() {
-  if (clerkConfigurado) return null;
+  if (configurada()) return null;
   if (enProduccion) {
     return 'La autenticación no está configurada. La aplicación no se sirve sin ella '
-      + 'porque contiene datos reales de clientes. Faltan CLERK_SECRET_KEY y '
-      + 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.';
+      + 'porque contiene datos reales de clientes. Faltan USUARIO, CLAVE_HASH '
+      + 'y SESION_SECRETO.';
   }
   return null;
 }
 
 class SinPermiso extends Error {}
 
+/** Lee la cookie y dice si vale. Sin efectos: no redirige ni escribe nada. */
+export async function haySesion() {
+  if (!configurada()) return false;
+  return Boolean(leerSesion((await cookies()).get(COOKIE)?.value));
+}
+
+/**
+ * A dónde volver después de entrar.
+ *
+ * La ruta la pone el proxy en `x-ruta` en cada petición. Se sobrescribe allí
+ * siempre, así que no vale que alguien mande su propia cabecera; aun así se
+ * comprueba que sea una ruta de esta aplicación y no un `//otro-sitio.com`,
+ * porque un parámetro de redirección sin validar es un salto abierto a
+ * cualquier parte y es exactamente el sitio donde suelen colarse.
+ */
+async function volverA() {
+  let ruta = '';
+  try {
+    ruta = (await headers()).get('x-ruta') || '';
+  } catch {
+    return '';
+  }
+  if (!ruta.startsWith('/') || ruta.startsWith('//') || ruta.startsWith('/\\')) return '';
+  if (ruta === '/' || ruta.startsWith('/entrar')) return '';
+  return `?volver=${encodeURIComponent(ruta)}`;
+}
+
 /**
  * Exige sesión válida. Se llama desde todo lo que lee o escribe datos.
  *
- * @returns {Promise<{userId: string|null, correo: string|null}>}
- * @throws  si hay sesión pero no es la persona autorizada
+ * @returns {Promise<{usuario: string|null, sinAutenticar?: boolean}>}
  */
 export async function exigirSesion() {
-  if (!clerkConfigurado) {
-    // En producción no se llega hasta aquí: el layout ya ha cortado.
+  if (!configurada()) {
+    // En producción no se llega hasta aquí: el layout raíz ya ha cortado.
     if (enProduccion) throw new SinPermiso('Autenticación no configurada.');
-    return { userId: null, correo: null, sinAutenticar: true };
+    return { usuario: null, sinAutenticar: true };
   }
 
-  const { userId, redirectToSignIn } = await auth();
-  if (!userId) return redirectToSignIn();
+  if (!(await haySesion())) redirect(`/entrar${await volverA()}`);
 
-  if (!correosAutorizados.length) return { userId, correo: null };
-
-  const suyos = (usuario) => (usuario?.emailAddresses ?? [])
-    .map((c) => c.emailAddress.toLowerCase().trim());
-
-  const correos = suyos(await currentUser());
-  const permitido = correos.find((c) => correosAutorizados.includes(c));
-
-  // Se manda a una pantalla que lo explica, no se lanza un error. Lanzarlo
-  // acababa en el 500 genérico de Next: la persona veía «A server error
-  // occurred» y no había forma de saber, desde el navegador, que lo que pasaba
-  // era que su cuenta no estaba en la lista. Un rechazo es una respuesta
-  // legítima, no una avería, y tiene que leerse como tal.
-  if (!permitido) redirect('/sin-acceso');
-
-  return { userId, correo: permitido };
+  return { usuario: usuarioConfigurado() };
 }

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UserButton } from '@clerk/nextjs';
+import BotonUsuario from './BotonUsuario.jsx';
 
 const SECCIONES = [
   { href: '/', texto: 'Resumen' },
@@ -12,7 +12,7 @@ const SECCIONES = [
   { href: '/exportar', texto: 'Exportar' },
 ];
 
-export default function Navegacion({ pendientes, conSesion }) {
+export default function Navegacion({ pendientes, usuario }) {
   const porRevisar = (pendientes?.avisos ?? 0) + (pendientes?.fusiones ?? 0);
   const borradores = pendientes?.borradores ?? 0;
 
@@ -38,9 +38,9 @@ export default function Navegacion({ pendientes, conSesion }) {
         </Link>
       </nav>
 
-      {conSesion && (
+      {usuario && (
         <div className="cabecera__sesion">
-          <UserButton />
+          <BotonUsuario usuario={usuario} />
         </div>
       )}
     </header>

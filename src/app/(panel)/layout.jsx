@@ -1,5 +1,5 @@
 import Navegacion from '../../componentes/Navegacion.jsx';
-import { clerkConfigurado, exigirSesion } from '../../lib/sesion.js';
+import { autenticacionConfigurada, exigirSesion } from '../../lib/sesion.js';
 import { pendientes } from '../../lib/consultas.js';
 
 /**
@@ -14,7 +14,7 @@ import { pendientes } from '../../lib/consultas.js';
  * quedarse sólo con esta dejaría escapar datos por la carga RSC.
  */
 export default async function LayoutPanel({ children }) {
-  await exigirSesion();
+  const { usuario } = await exigirSesion();
 
   // El menú lleva el contador de cosas pendientes. Si la base aún no está
   // sembrada la consulta falla y el menú sale sin contadores: no vale la pena
@@ -31,12 +31,12 @@ export default async function LayoutPanel({ children }) {
 
   return (
     <>
-      {!clerkConfigurado && (
+      {!autenticacionConfigurada() && (
         <p className="aviso-sin-auth" role="alert">
           Sin autenticación: esta copia no pide contraseña. Sólo para desarrollo en local.
         </p>
       )}
-      <Navegacion pendientes={cuenta} conSesion={clerkConfigurado} />
+      <Navegacion pendientes={cuenta} usuario={usuario} />
       <main className="contenido">{children}</main>
     </>
   );

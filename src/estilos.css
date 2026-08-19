@@ -9,9 +9,12 @@
 
 :root {
   /* Claro siempre. Lo pidió él, y encaja: esto imita un libro de cuentas, que
-     es tinta sobre papel y no al revés. Además la tarjeta de Clerk en la
-     pantalla de entrada es blanca y no sigue al sistema, así que en oscuro
-     quedaba una tarjeta blanca flotando sobre una página negra.
+     es tinta sobre papel y no al revés.
+
+     Aquí había además un motivo técnico —la tarjeta de Clerk en la pantalla de
+     entrada era blanca pasara lo que pasara— que ya no existe: esa pantalla la
+     pintamos nosotros y usa estas mismas variables. Si algún día se quiere modo
+     oscuro, ya no hay nada que lo impida.
 
      `color-scheme` es lo que evita que el navegador pinte por su cuenta en
      oscuro los desplegables, los campos y la barra de desplazamiento cuando el
@@ -47,8 +50,9 @@
 
 /* Aquí vivía el bloque de `prefers-color-scheme: dark`. Se quitó a propósito:
    la aplicación va en claro pase lo que pase en el sistema. Si algún día hay
-   que recuperarlo, está en el historial —`git log -S "prefers-color-scheme"`—
-   y habrá que acordarse de la tarjeta de Clerk, que es blanca siempre. */
+   que recuperarlo, está en el historial —`git log -S "prefers-color-scheme"`— y
+   ahora sí es sólo cuestión de redefinir las variables de arriba: no queda
+   ninguna pantalla que se pinte sola por su cuenta. */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -164,7 +168,12 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-.cabecera__sesion { display: flex; align-items: center; }
+/* `margin-left: auto` no es decoración: en móvil la cabecera se parte y el
+   avatar cae solo en su propia línea, pegado a la izquierda. Su menú se ancla
+   por la derecha, así que allí se salía de la pantalla por el lado izquierdo y
+   el correo quedaba cortado. Empujándolo al final de la línea, el mismo anclaje
+   vale para las dos anchuras. */
+.cabecera__sesion { display: flex; align-items: center; margin-left: auto; }
 
 /* ── Avisos de la propia instalación ────────────────────────────────────── */
 
@@ -187,7 +196,122 @@ code {
 .bloqueo h1 { font-size: 1.25rem; margin-bottom: 0.75rem; }
 .bloqueo p { color: var(--tinta-media); }
 
-.entrar { display: grid; place-items: center; padding: 2rem 0; }
+/* ── La pantalla de entrada ─────────────────────────────────────────────── */
+/* Sin tarjeta y sin sombra. Es la primera página del mismo libro, no un
+   formulario de otro sitio pegado delante: misma regla gruesa bajo la marca que
+   la que cierra la cabecera del panel, mismos campos, mismo botón. */
+
+.entrar {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 2rem 1.5rem;
+}
+
+.entrar__caja { width: 100%; max-width: 21rem; }
+
+.entrar__marca {
+  margin: 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 2px solid var(--tinta);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.entrar__titulo { margin: 1.6rem 0 0.2rem; font-size: 1.25rem; }
+.entrar__sub { margin: 0 0 1.5rem; color: var(--tinta-media); font-size: 0.875rem; }
+
+.entrar__caja .alerta { margin-bottom: 1.1rem; }
+.entrar__caja .campo { margin-bottom: 0.9rem; }
+
+/* El botón de ver la contraseña va dentro del campo. Son veinticuatro
+   caracteres aleatorios tecleados en un móvil: hace falta. */
+.entrar__clave { position: relative; display: flex; }
+.entrar__clave input { padding-right: 3.6rem; }
+
+.entrar__ver {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  padding: 0.2rem 0.35rem;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--tinta-tenue);
+  background: none;
+  border: 0;
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+.entrar__ver:hover { color: var(--tinta); }
+
+.entrar__enviar { width: 100%; margin-top: 0.4rem; padding: 0.55rem 1rem; }
+
+/* ── La cuenta, arriba a la derecha ─────────────────────────────────────── */
+
+.usuario { position: relative; }
+
+.usuario__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: 999px;
+  background: var(--papel-alt);
+  color: var(--tinta-media);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.usuario__avatar:hover { color: var(--tinta); border-color: var(--tinta-media); }
+.usuario__avatar--fijo { cursor: default; }
+
+.usuario__menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  /* Lo justo para que el correo entero quepa en una línea: partido por la mitad
+     se lee como si fuera otra dirección. */
+  min-width: 16.5rem;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  background: var(--papel);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--radio);
+}
+
+.usuario__quien {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.usuario__correo { font-size: 0.8125rem; color: var(--tinta-media); overflow-wrap: anywhere; }
+.usuario__error { margin: 0 0 0.5rem; font-size: 0.75rem; color: var(--perdida); }
+
+.usuario__salir {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--tinta);
+  background: none;
+  border: 0;
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+.usuario__salir:hover:not(:disabled) { background: var(--papel-alt); }
+.usuario__salir:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Tiras de estado ────────────────────────────────────────────────────── */
 

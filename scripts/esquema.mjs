@@ -47,6 +47,9 @@ const COLUMNAS_NUEVAS = [
     columna: 'colaborador_id',
     definicion: 'INTEGER REFERENCES colaboradores(id) ON DELETE SET NULL',
   },
+  { tabla: 'colaboradores', columna: 'direccion', definicion: "TEXT NOT NULL DEFAULT ''" },
+  { tabla: 'colaboradores', columna: 'barrio', definicion: "TEXT NOT NULL DEFAULT ''" },
+  { tabla: 'colaboradores', columna: 'provincia', definicion: "TEXT NOT NULL DEFAULT ''" },
 ];
 
 // El orden importa: las vistas se definen sobre columnas que quizá aún no

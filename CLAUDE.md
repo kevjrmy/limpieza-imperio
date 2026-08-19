@@ -445,6 +445,25 @@ motivo por el que `recurrencia.js` no propone colaborador al preparar el mes.
 número apuntado: al principio esto va a salir casi siempre, y un hueco en blanco
 sin explicación se lee como que la aplicación no funciona.
 
+## Dónde vive cada colaborador
+
+La ficha del colaborador lleva **dirección, barrio y provincia**, que él pidió
+así. Van en tres campos y no en una sola línea de dirección porque el barrio es
+lo que de verdad usa para decidir a quién manda a qué cliente, y dentro de un
+texto libre no hay manera de mirarlo de un vistazo.
+
+En la tabla se enseñan en **una sola columna** —«Dónde vive»— con la calle
+arriba y `barrio · provincia` debajo: la tabla ya tenía ocho columnas y las tres
+se leen como una sola cosa.
+
+**El cliente no tiene barrio ni provincia**, sólo dirección, y es a propósito:
+la dirección del cliente ES el sitio al que se va, no dónde vive nadie. Si algún
+día hace falta, es la misma migración.
+
+`provincia` es texto libre. Con un solo usuario y casi todo en una provincia no
+compensaba una lista cerrada; si algún día conviven «Valencia», «VALENCIA» y
+«València» en las exportaciones, ahí está el motivo y el arreglo es una lista.
+
 ## Invariantes del dominio
 
 - **El margen es `valor − (pago_colab + transporte)`**, y no se escribe en

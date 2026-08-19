@@ -49,6 +49,15 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   ref         TEXT UNIQUE,
   nombre      TEXT NOT NULL,
   telefono    TEXT NOT NULL DEFAULT '',
+
+  -- Dónde vive. Lo pidió él, y para lo que sirve aquí es para repartir el
+  -- trabajo: quién pilla cerca de qué cliente. Van sueltos y no en una sola
+  -- casilla de dirección porque el barrio es lo que de verdad usa para decidir,
+  -- y dentro de una línea de texto libre no hay manera de mirarlo de un vistazo.
+  direccion   TEXT NOT NULL DEFAULT '',
+  barrio      TEXT NOT NULL DEFAULT '',
+  provincia   TEXT NOT NULL DEFAULT '',
+
   notas       TEXT NOT NULL DEFAULT '',
   activo      INTEGER NOT NULL DEFAULT 1,
   creado_en   TEXT NOT NULL DEFAULT (datetime('now')),

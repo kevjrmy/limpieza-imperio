@@ -345,13 +345,15 @@ export const guardarColaborador = accion(async (id, datos) => {
   const nombre = txt(datos.get('nombre'));
   exigir(nombre, 'El colaborador necesita un nombre.');
 
-  const campos = [nombre, txt(datos.get('telefono')), txt(datos.get('notas')),
-    datos.get('activo') ? 1 : 0];
+  const campos = [nombre, txt(datos.get('telefono')),
+    txt(datos.get('direccion')), txt(datos.get('barrio')), txt(datos.get('provincia')),
+    txt(datos.get('notas')), datos.get('activo') ? 1 : 0];
 
   if (id) {
     await ejecutar(
-      `UPDATE colaboradores SET nombre=?, telefono=?, notas=?, activo=?,
-              editado_en=datetime('now') WHERE id=?`, [...campos, Number(id)]);
+      `UPDATE colaboradores SET nombre=?, telefono=?, direccion=?, barrio=?, provincia=?,
+              notas=?, activo=?, editado_en=datetime('now') WHERE id=?`,
+      [...campos, Number(id)]);
     refrescar();
     return { ok: true, id: Number(id) };
   }
@@ -361,7 +363,8 @@ export const guardarColaborador = accion(async (id, datos) => {
   exigir(!yaEsta, `Ya existe un colaborador llamado «${yaEsta?.nombre}».`);
 
   const { id: nuevo } = await ejecutar(
-    'INSERT INTO colaboradores (nombre, telefono, notas, activo) VALUES (?,?,?,?)', campos);
+    `INSERT INTO colaboradores (nombre, telefono, direccion, barrio, provincia, notas, activo)
+     VALUES (?,?,?,?,?,?,?)`, campos);
   refrescar();
   return { ok: true, id: Number(nuevo) };
 });

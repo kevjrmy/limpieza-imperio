@@ -86,10 +86,25 @@ export default function FichaPersona({ tipo, persona, alTerminar, colaboradores 
         <input type="text" name="nombre" required defaultValue={persona?.nombre ?? ''} />
       </label>
 
-      {esCliente && (
+      <label className="campo">
+        <span>Dirección</span>
+        <input type="text" name="direccion" defaultValue={persona?.direccion ?? ''} />
+      </label>
+
+      {/* Del colaborador le interesa dónde vive para repartir el trabajo: quién
+          pilla cerca de qué cliente. Del cliente no hace falta — la dirección
+          del cliente ES el sitio al que se va. */}
+      {!esCliente && (
         <label className="campo">
-          <span>Dirección</span>
-          <input type="text" name="direccion" defaultValue={persona?.direccion ?? ''} />
+          <span>Barrio</span>
+          <input type="text" name="barrio" defaultValue={persona?.barrio ?? ''} />
+        </label>
+      )}
+
+      {!esCliente && (
+        <label className="campo">
+          <span>Provincia</span>
+          <input type="text" name="provincia" defaultValue={persona?.provincia ?? ''} />
         </label>
       )}
 

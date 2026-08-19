@@ -71,6 +71,7 @@ export default async function Colaboradores({ searchParams }) {
               <th scope="col" className="num">Nº</th>
               <th scope="col">Nombre</th>
               <th scope="col">Teléfono</th>
+              <th scope="col">Dónde vive</th>
               <th scope="col" className="num">Servicios</th>
               <th scope="col" className="num">Horas</th>
               <th scope="col" className="num">Pagado</th>
@@ -85,6 +86,16 @@ export default async function Colaboradores({ searchParams }) {
                 <td className="celda-codigo">{codigo(c.id)}</td>
                 <th scope="row" className="celda-nombre">{c.nombre}</th>
                 <td className="celda-nota">{c.telefono}</td>
+                {/* Las tres en una celda y no en tres columnas: la tabla ya
+                    tiene ocho y esto se lee como una sola cosa, «dónde vive». */}
+                <td className="celda-nota">
+                  {c.direccion}
+                  {(c.barrio || c.provincia) && (
+                    <span className="celda-nota__pie">
+                      {[c.barrio, c.provincia].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </td>
                 <td className="num">{entero(c.servicios)}</td>
                 <td className="num">{numero(c.horas)}</td>
                 <td className="dinero">{euros(c.pago)}</td>

@@ -215,6 +215,7 @@ async function _serviciosDeCliente(id) {
 async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
   const filas = await consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
+           co.direccion, co.barrio, co.provincia,
            COUNT(s.id)                               AS servicios,
            -- El pago vive en servicio_colaborador, y el filtro de mes va en el
            -- JOIN con los servicios, no ahí. Sumar sc.pago a secas enseñaba lo

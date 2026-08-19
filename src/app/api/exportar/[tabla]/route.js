@@ -93,6 +93,9 @@ const TABLAS = {
       { campo: 'id', titulo: 'Nº' },
       { campo: 'nombre', titulo: 'Colaborador' },
       { campo: 'telefono', titulo: 'Teléfono' },
+      { campo: 'direccion', titulo: 'Dirección' },
+      { campo: 'barrio', titulo: 'Barrio' },
+      { campo: 'provincia', titulo: 'Provincia' },
       { campo: 'servicios', titulo: 'Servicios' },
       { campo: 'horas', titulo: 'Horas' },
       { campo: 'pago', titulo: 'Pagado' },
@@ -100,6 +103,7 @@ const TABLAS = {
     ],
     sql: `
       SELECT co.id, co.nombre, co.telefono,
+             co.direccion, co.barrio, co.provincia,
              COUNT(s.id) AS servicios,
              COALESCE(SUM(s.horas / (SELECT COUNT(*) FROM servicio_colaborador x
                                       WHERE x.servicio_id = s.id)), 0) AS horas,

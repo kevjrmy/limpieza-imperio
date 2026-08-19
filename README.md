@@ -314,12 +314,50 @@ no a quien reparta los intentos entre instancias. Nada de eso sostiene la
 seguridad de esto: la sostiene una contraseña de veinticuatro caracteres
 aleatorios, que son unos 139 bits.
 
+## Las fichas, y por qué no son dos casillas de texto
+
+Pidió dos cosas el mismo día, y las dos son «añadir campos». Se resolvieron
+distinto a propósito.
+
+**En el cliente, quién suele ir.** Lo dijo como «el nombre del trabajador y su
+teléfono». Es una **referencia** a `colaboradores`, elegida de un desplegable, y
+el teléfono **no se copia**: se lee de la ficha de esa persona y en el formulario
+sale como texto, no como campo. Escrito a mano, el número de una misma persona
+quedaría en hasta siete fichas de cliente —ése es el máximo real en sus datos— y
+el día que cambiara no habría nada que avisara de las otras seis. Es la misma
+regla que el margen: el dato vive en un sitio.
+
+Queda opcional, y lo estará casi siempre: sólo el 23 % de sus clientes ha tenido
+siempre a la misma persona, y más de la mitad han visto pasar a tres o más.
+Obligar a rellenarlo sería obligar a inventárselo — el mismo motivo por el que
+el generador de recurrencias tampoco propone colaborador.
+
+Cuando quien elige no tiene teléfono apuntado, se dice en ámbar con un enlace a
+su ficha. De sus 154 colaboradores sólo 2 lo tenían, así que al principio sale
+casi siempre, y un hueco en blanco se lee como una avería.
+
+**En el colaborador, dónde vive.** Dirección, barrio y provincia, en tres
+campos. El barrio es lo que de verdad usa para repartir el trabajo —quién pilla
+cerca de qué cliente— y dentro de una línea de texto libre no hay manera de
+mirarlo de un vistazo. En la tabla van juntos en una sola columna.
+
+El cliente no tiene barrio ni provincia, y no es un olvido: la dirección del
+cliente **es** el sitio al que se va, no dónde vive nadie.
+
 ## Esquema
 
 `clientes`, `colaboradores`, `servicios` y la tabla de unión
 `servicio_colaborador` — un servicio puede llevar varias personas, que es
 exactamente lo que la celda apretujada del Excel debería haber sido. Aparte:
 `gastos`, `costes_fijos`, `cierres`, `avisos` y `fusiones`.
+
+No hay tabla de usuarios ni de sesiones, y es deliberado: la autenticación no
+escribe nada en la base. Ver *Autenticación*.
+
+`clientes.colaborador_id` apunta a quién suele ir. `colaboradores` lleva
+`direccion`, `barrio` y `provincia`. Las cuatro columnas se añaden solas sobre
+una base que ya tiene datos (`COLUMNAS_NUEVAS` en `scripts/esquema.mjs`), porque
+`CREATE TABLE IF NOT EXISTS` no toca una tabla que ya existe.
 
 Cada fila sembrada conserva su `origen` (`CLIENTES AGOSTO 2026!86`), así que
 cualquier cifra se puede rastrear hasta una línea concreta de su archivo.
@@ -328,6 +366,24 @@ Los importes son `REAL`, no céntimos enteros. Suena mal para contabilidad, pero
 él escribe 83,333 € —un tercio de 250— y redondear a céntimos le cambiaría los
 totales del año sin avisar. Donde el redondeo sí se nota, el reparto entre
 colaboradores, se trabaja en céntimos enteros.
+
+## El respaldo
+
+```bash
+TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… npm run respaldo
+```
+
+Sólo lee —no hay un `INSERT` ni un `ALTER` en todo el script— y deja un `.sql`
+en `.datos/`, fuera de git, que se restaura con `sqlite3 nueva.db < …`. No pisa
+uno que ya exista. **Hazlo antes de cualquier `npm run esquema` contra la base
+del cliente**: es la única copia que hay.
+
+Una trampa que sólo se ve restaurando: **las columnas generadas no se copian**.
+`servicios.margen` lo es, así que un `SELECT *` la trae y el `INSERT` de vuelta
+muere con «cannot INSERT into generated column». La primera versión escribía el
+respaldo tan tranquila y lo restauraba **sin un solo servicio**. Se detectan con
+`pragma_table_xinfo`; `table_info` ni las enseña. Un respaldo que no se ha
+restaurado nunca no es un respaldo.
 
 ## Notas técnicas
 
@@ -362,9 +418,13 @@ colaboradores, se trabaja en céntimos enteros.
 
 ## Lo que queda
 
-- **Poner `USUARIO`, `CLAVE_HASH` y `SESION_SECRETO` en Vercel ANTES de
-  desplegar esto.** El orden no es un detalle: sin las tres, en producción la
-  aplicación se niega a servirse, así que un despliegue por delante de las
-  variables tira la aplicación hasta que se pongan.
-- Enseñárselo, y confirmar con él el criterio del gasto de empresa.
-- Darle la contraseña y verle entrar la primera vez desde su móvil.
+Las variables ya están en Vercel y las cuatro columnas nuevas ya están en su
+base —respaldo del 19 de agosto de 2026 hecho y restaurado antes de tocarla, y
+las cifras cuadrando al céntimo después—. Queda:
+
+- Verle entrar la primera vez desde su móvil. La contraseña es la misma que ya
+  usaba, así que lo único nuevo para él es la pantalla.
+- Enseñarle los dos campos nuevos y confirmar con él el criterio del gasto de
+  empresa, que sigue sin confirmar desde la entrega.
+- Rellenar los teléfonos de los colaboradores. Sólo 2 de 154 lo tenían, y el
+  colaborador habitual del cliente los lee de ahí.

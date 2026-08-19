@@ -18,6 +18,11 @@ cuenta de desarrollo no queda nada de lo que dependa la aplicación. Los datos s
 migraron y cuadran, y ninguna ruta devuelve nada sin sesión —comprobado sobre el
 despliegue real, en el HTML crudo, ruta por ruta.
 
+**Y la está usando.** Entre el respaldo del 17 y el del 19 de agosto de 2026
+aplicó una fusión —de ahí que clientes y colaboradores bajen de 140 y 110 a 139
+y 109, porque la absorbida se borra— y apuntó un servicio más. Cualquier cifra
+de aquí abajo es de cuando se escribió: para saber lo de hoy, mira la base.
+
 **Sólo hay una base de datos**, la de su cuenta. La vieja se borró a conciencia
 para que nadie la confunda con la buena. El respaldo vive fuera de git, en
 `.datos/`, y es lo único que hay si algo sale mal: trátalo como tal.
@@ -107,7 +112,8 @@ src/lib/          db.js consultas.js acciones.js csv.js esquema.sql
                   parser.js
 src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
 scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
-                  verificar.mjs · libro-de-prueba.mjs · clave.mjs
+                  verificar.mjs · libro-de-prueba.mjs
+                  clave.mjs (credenciales) · respaldo.mjs (copia, sólo lee)
 docs/             archivos reales del cliente (fuera de git)
 ```
 
@@ -134,6 +140,17 @@ npm run dev                            # http://localhost:3000
 Sin `TURSO_DATABASE_URL` la base es un archivo local; con ella, Turso. Es el
 mismo cliente y el mismo SQL en los dos casos, así que lo que se prueba en local
 es lo que corre desplegado.
+
+Las órdenes que hay, y cuáles escriben:
+
+| | |
+|---|---|
+| `npm run esquema` | **escribe** — crea tablas y añade columnas nuevas |
+| `npm run sembrar` | **escribe** — con `--rehacer` borra y vuelve a llenar |
+| `npm run modelo` | escribe el `.ods` a partir del `.xlsx` |
+| `npm run respaldo` | sólo lee — deja un `.sql` restaurable en `.datos/` |
+| `npm run clave` | no toca la base — genera usuario, hash y secreto |
+| `npm run verificar` | sólo lee el `.xlsx` |
 
 **En local NO se ponen las variables `TURSO_`.** `.env.local` va sin ellas a
 propósito, para que el desarrollo use `.datos/limpiezas.db` y no haya manera de

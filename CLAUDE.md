@@ -176,6 +176,29 @@ en el README: no lo "arregles" relajando las salvaguardas sin leer por qué.
 Sin el archivo real, `libro-de-prueba.mjs` genera un libro sintético con las
 mismas rarezas y nombres inventados.
 
+### Respaldo antes de tocar producción
+
+```bash
+TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… npm run respaldo
+```
+
+`scripts/respaldo.mjs` **sólo lee** —no hay un INSERT ni un ALTER en todo el
+archivo— y deja un `.sql` en `.datos/`, que está fuera de git. Se restaura con
+`sqlite3 nueva.db < …`. No pisa un respaldo que ya exista: perder el de ayer por
+relanzarlo sería justo el fallo del que protege.
+
+**Ejecútalo antes de cualquier `npm run esquema` que vaya a la base del
+cliente.** Es la única copia que hay.
+
+Un detalle que costó encontrarlo y que no se puede deshacer al revés: **las
+columnas generadas no se copian**. `servicios.margen` lo es, así que un
+`SELECT *` la trae y el INSERT de vuelta muere con «cannot INSERT into generated
+column». El respaldo se escribía tan feliz y se restauraba **sin un solo
+servicio**; sólo lo cantaba al restaurarlo, o sea el día que ya da igual. Se
+detectan con `pragma_table_xinfo` (hidden 2 o 3); `table_info` ni las enseña. Si
+algún día se añade otra columna generada, esto ya la respeta — pero **prueba la
+restauración**, que es lo único que lo demuestra.
+
 ### Comprobar que la base sigue cuadrando
 
 `npm run sembrar` contrasta lo insertado contra el propio `.ods` y **sale con

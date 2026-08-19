@@ -10,7 +10,8 @@
     "esquema": "node scripts/esquema.mjs",
     "sembrar": "node scripts/sembrar.mjs",
     "modelo": "node scripts/modelo-2026.mjs",
-    "clave": "node scripts/clave.mjs"
+    "clave": "node scripts/clave.mjs",
+    "respaldo": "node scripts/respaldo.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

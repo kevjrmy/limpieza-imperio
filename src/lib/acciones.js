@@ -375,6 +375,17 @@ export const borrarColaborador = accion(async (id) => {
   exigir(n === 0,
     `Esta persona figura en ${n} servicio(s). Márcala como inactiva en vez de borrarla.`);
 
+  // Sin esta comprobación el borrado sí ocurría, pero la referencia es
+  // `ON DELETE SET NULL`: las fichas de cliente que la tuvieran como habitual se
+  // quedaban en blanco sin avisar, y ya no hay de dónde sacar a quién tenían.
+  // Se dice cuántas son y se para: quitarlo de sus fichas es cosa de una
+  // decisión suya, no de un efecto lateral.
+  const [{ c: fichas }] = await consultar(
+    'SELECT COUNT(*) AS c FROM clientes WHERE colaborador_id = ?', [Number(id)]);
+  exigir(fichas === 0,
+    `Esta persona es el colaborador habitual de ${fichas} cliente(s). Quítala de sus `
+    + 'fichas antes de borrarla, o márcala como inactiva.');
+
   await ejecutar('DELETE FROM colaboradores WHERE id = ?', [Number(id)]);
   refrescar();
   return { ok: true };
@@ -517,6 +528,16 @@ export const aplicarFusion = accion(async (id) => {
         [origen.id, destino.id]);
       await ejecutar(
         'UPDATE servicio_colaborador SET colaborador_id = ? WHERE colaborador_id = ?',
+        [destino.id, origen.id]);
+
+      // El colaborador habitual de un cliente apunta aquí, y esa referencia es
+      // `ON DELETE SET NULL`: sin mover esto, el DELETE de abajo dejaba a esos
+      // clientes sin quien suele ir, en silencio y sin forma de saber a quién
+      // tenían puesto. Unir dos fichas de la misma persona no puede PERDER lo
+      // que dice cada una — es el mismo fallo que el de los 40 € del reparto,
+      // sólo que aquí lo que se evapora es el dato de contacto.
+      await ejecutar(
+        'UPDATE clientes SET colaborador_id = ? WHERE colaborador_id = ?',
         [destino.id, origen.id]);
     }
 

@@ -344,6 +344,29 @@ mirarlo de un vistazo. En la tabla van juntos en una sola columna.
 El cliente no tiene barrio ni provincia, y no es un olvido: la dirección del
 cliente **es** el sitio al que se va, no dónde vive nadie.
 
+**Que sea una referencia y no un texto tiene una consecuencia que hubo que
+atender.** La columna es `ON DELETE SET NULL`, así que borrar a un colaborador
+vaciaba en silencio la ficha de todos los clientes que lo tuvieran de habitual,
+y no quedaba de dónde sacar a quién tenían puesto. Pasaba por dos caminos, y los
+dos están cerrados:
+
+- **Al unir dos nombres** en `/revisar`, la referencia se mueve al que se queda
+  antes de borrar al absorbido, igual que se mueve el historial de servicios.
+  Unir dos fichas de la misma persona no puede perder lo que dice cada una — es
+  el mismo fallo que los 40 € del reparto, con un dato de contacto en lugar de
+  dinero.
+- **Al borrar a un colaborador**, si es el habitual de algún cliente se para y
+  se dice de cuántos. Quitarlo de esas fichas es una decisión suya, no un efecto
+  lateral de otra cosa.
+
+Y una que se arrastraba desde que se añadió el campo `activo`: la fila de la
+tabla de colaboradores se le pasa entera al formulario de edición, pero la
+consulta no traía esa columna. La casilla «Activo» salía sin marcar para todo el
+mundo, así que **corregir un teléfono desde la tabla daba de baja a la
+persona**, sin decir nada. La regla que queda escrita en la consulta: si un
+campo se edita en el formulario, tiene que venir en la consulta que alimenta la
+fila. Un `undefined` en una casilla es indistinguible de un «no».
+
 ## Esquema
 
 `clientes`, `colaboradores`, `servicios` y la tabla de unión

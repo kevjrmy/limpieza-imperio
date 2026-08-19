@@ -485,6 +485,22 @@ motivo por el que `recurrencia.js` no propone colaborador al preparar el mes.
 número apuntado: al principio esto va a salir casi siempre, y un hueco en blanco
 sin explicación se lee como que la aplicación no funciona.
 
+**`clientes.colaborador_id` es `ON DELETE SET NULL`, y eso hay que atenderlo a
+mano en todo lo que borre un colaborador.** Las referencias se vaciaban solas y
+en silencio, sin dejar rastro de a quién tenía puesto cada cliente. Los dos
+caminos por los que pasaba están cerrados en `acciones.js`:
+
+- `aplicarFusion` **mueve** la referencia al que se queda antes de borrar al
+  absorbido, igual que mueve `servicio_colaborador`. Si añades otra tabla que
+  apunte a `colaboradores` o a `clientes`, ese bucle es el sitio.
+- `borrarColaborador` **se niega** si es el habitual de algún cliente, y dice de
+  cuántos. Es la misma familia que la comprobación de servicios que ya había.
+
+Las claves foráneas **sí se aplican en tiempo de ejecución** —libSQL trae
+`PRAGMA foreign_keys` en 1 por su cuenta, comprobado—, así que el `SET NULL` y
+el `CASCADE` de `servicio_colaborador` ocurren de verdad. No es una regla en el
+papel: es la base borrando datos por ti.
+
 ## Dónde vive cada colaborador
 
 La ficha del colaborador lleva **dirección, barrio y provincia**, que él pidió
@@ -537,6 +553,13 @@ compensaba una lista cerrada; si algún día conviven «Valencia», «VALENCIA»
   cosa que escriba en `servicio_colaborador`, ejecútala.
 - El reparto de pagos se hace en **céntimos enteros** (`repartir()` en
   `metricas.js`) para que la suma de las partes cuadre exacta con el pago.
+- **La fila que alimenta un formulario tiene que traer TODO lo que el formulario
+  escribe.** `FichaPersona` recibe la fila de la tabla entera y guarda todos sus
+  campos; la consulta de `/colaboradores` no traía `activo`, así que la casilla
+  salía sin marcar para todo el mundo y **corregir un teléfono desde la tabla
+  daba de baja a la persona**, en silencio. Un `undefined` en una casilla es
+  indistinguible de un «no», y el guardado no tiene forma de notar la
+  diferencia. Si añades un campo al formulario, tráelo también en la consulta.
 - **Nada con historial se borra.** Un cliente con servicios o un colaborador con
   asignaciones no se pueden borrar: se marcan inactivos. La comprobación está en
   `acciones.js`, no en la pantalla.

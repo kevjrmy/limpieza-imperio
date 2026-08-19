@@ -216,6 +216,14 @@ async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
   const filas = await consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
            co.direccion, co.barrio, co.provincia,
+           -- activo no se enseña en esta tabla, pero SÍ hace falta: la fila se
+           -- le pasa entera a FichaPersona al editar desde aquí, y la casilla
+           -- «Activo» sale marcada o no según este campo. Sin él llegaba
+           -- undefined, la casilla salía sin marcar y guardar un teléfono daba
+           -- de baja a la persona sin decir nada. Ojo con las comillas inversas
+           -- aquí dentro: esto vive en una plantilla de JS y una sola la parte.
+           -- Si añades un campo al formulario, tráelo también en esta consulta.
+           co.activo,
            COUNT(s.id)                               AS servicios,
            -- El pago vive en servicio_colaborador, y el filtro de mes va en el
            -- JOIN con los servicios, no ahí. Sumar sc.pago a secas enseñaba lo

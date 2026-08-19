@@ -13,9 +13,10 @@
  * El formato es el mismo que suelta `sqlite3 .dump`, así que para recuperar
  * basta con `sqlite3 nueva.db < el-archivo.sql`.
  *
- * La fecha del nombre se pasa por fuera y no se saca del reloj del proceso: en
- * Vercel eso sería UTC y aquí Madrid, y entre las 00:00 y las 02:00 no
- * coinciden. Aquí corre siempre a mano y en local, pero la regla de la casa es
+ * La fecha del nombre lleva `Europe/Madrid` escrito, no el huso del proceso:
+ * entre las 00:00 y las 02:00 el reloj en UTC va un día por detrás, y un
+ * respaldo con la fecha de ayer en el nombre es justo el que se confunde con el
+ * de ayer de verdad. Esto corre a mano y en local, pero la regla de la casa es
  * la misma en todas partes.
  */
 

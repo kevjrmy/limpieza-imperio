@@ -464,6 +464,19 @@ Un usuario, una contraseña, y nada más. No hay registro, ni invitaciones, ni
 roles, ni segundo factor, ni pantalla de perfil, ni recuperación por correo. Se
 entra y se sale; eso es todo lo que hace.
 
+**Registrarse no está escondido: no existe.** No hay ruta, no hay acción y no
+hay tabla de usuarios donde dar de alta a nadie. Si alguna vez hace falta un
+segundo usuario, no se añade una pantalla de alta: se cambia el planteamiento
+entero, porque todo esto se apoya en que sólo hay uno.
+
+**La contraseña es la que él ya venía usando con Clerk**, no una nueva. Fue una
+decisión suya y es la correcta: cambiarle la contraseña el mismo día que le
+cambias la pantalla de entrada es pedirle que aprenda dos cosas a la vez, y
+acaba en una llamada. Da la casualidad de que además es fuerte —veinte
+caracteres con mayúsculas, minúsculas y dígitos, sin palabra ni año dentro—,
+así que la advertencia de más abajo sobre contraseñas memorizables sigue sin
+aplicar. Si algún día se cambia, compruébalo antes de darla por buena.
+
 **Tres variables de entorno, y la base de datos no participa.** `USUARIO` es el
 nombre de usuario (tiene forma de correo, pero no se le manda ningún correo
 nunca), `CLAVE_HASH` es la contraseña pasada por `scrypt` y `SESION_SECRETO`

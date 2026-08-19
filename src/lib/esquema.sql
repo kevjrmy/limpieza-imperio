@@ -26,10 +26,22 @@ CREATE TABLE IF NOT EXISTS clientes (
   telefono    TEXT NOT NULL DEFAULT '',
   notas       TEXT NOT NULL DEFAULT '',
   activo      INTEGER NOT NULL DEFAULT 1,
+
+  -- Quién suele ir a este cliente. Es una REFERENCIA, no un nombre escrito a
+  -- mano, y el teléfono NO se copia aquí: se lee de la ficha de esa persona.
+  -- Si se copiara, el mismo número quedaría escrito en hasta siete fichas de
+  -- cliente y el día que cambie de número habría que acordarse de las siete.
+  --
+  -- Es opcional a propósito. En sus datos sólo el 23 % de los clientes ha
+  -- tenido siempre a la misma persona: más de la mitad han visto pasar a tres
+  -- o más. Obligar a rellenarlo sería obligar a inventarse un dato.
+  colaborador_id INTEGER REFERENCES colaboradores(id) ON DELETE SET NULL,
+
   creado_en   TEXT NOT NULL DEFAULT (datetime('now')),
   editado_en  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON clientes(nombre);
+CREATE INDEX IF NOT EXISTS idx_clientes_colaborador ON clientes(colaborador_id);
 
 -- ── Colaboradores ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS colaboradores (

@@ -62,6 +62,8 @@ const TABLAS = {
       { campo: 'nombre', titulo: 'Cliente' },
       { campo: 'direccion', titulo: 'Dirección' },
       { campo: 'telefono', titulo: 'Teléfono' },
+      { campo: 'colaborador_nombre', titulo: 'Colaborador habitual' },
+      { campo: 'colaborador_telefono', titulo: 'Teléfono del colaborador' },
       { campo: 'servicios', titulo: 'Servicios' },
       { campo: 'horas', titulo: 'Horas' },
       { campo: 'facturado', titulo: 'Facturado' },
@@ -71,12 +73,15 @@ const TABLAS = {
     ],
     sql: `
       SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
+             co.nombre   AS colaborador_nombre,
+             co.telefono AS colaborador_telefono,
              COUNT(s.id) AS servicios,
              COALESCE(SUM(s.horas), 0)  AS horas,
              COALESCE(SUM(s.valor), 0)  AS facturado,
              COALESCE(SUM(s.margen), 0) AS margen,
              MAX(s.fecha) AS ultimo
         FROM clientes c
+        LEFT JOIN colaboradores co ON co.id = c.colaborador_id
         LEFT JOIN v_servicios s ON s.cliente_id = c.id AND (?1 = '' OR s.periodo = ?1)
        GROUP BY c.id
        ORDER BY margen DESC, c.nombre`,

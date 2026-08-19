@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import EditarPersona from '../../../../componentes/EditarPersona.jsx';
-import { cliente, serviciosDeCliente } from '../../../../lib/consultas.js';
+import { cliente, serviciosDeCliente, listaColaboradores } from '../../../../lib/consultas.js';
 import { euros, numero, entero, porcentaje, fecha, nombrePeriodo, codigo } from '../../../../lib/formato.js';
 import { tonoDinero } from '../../../../componentes/formato.js';
 
@@ -14,6 +14,7 @@ export default async function Cliente({ params }) {
   if (!c) notFound();
 
   const suyos = await serviciosDeCliente(id);
+  const colaboradores = await listaColaboradores();
   const facturado = suyos.reduce((a, s) => a + s.valor, 0);
   const margen = suyos.reduce((a, s) => a + s.margen, 0);
   const horas = suyos.reduce((a, s) => a + s.horas, 0);
@@ -36,6 +37,20 @@ export default async function Cliente({ params }) {
       <dl className="ficha">
         <div><dt>Dirección</dt><dd>{c.direccion || '—'}</dd></div>
         <div><dt>Teléfono</dt><dd>{c.telefono || '—'}</dd></div>
+        <div>
+          <dt>Colaborador habitual</dt>
+          <dd>
+            {c.colaborador_nombre ? (
+              <>
+                {c.colaborador_nombre}{' '}
+                <span className="tenue">{codigo(c.colaborador_id)}</span>
+                {c.colaborador_telefono
+                  ? <> · <a href={`tel:${c.colaborador_telefono}`}>{c.colaborador_telefono}</a></>
+                  : <span className="tenue"> · sin teléfono</span>}
+              </>
+            ) : '—'}
+          </dd>
+        </div>
         <div><dt>Servicios</dt><dd>{entero(suyos.length)}</dd></div>
         <div><dt>Horas</dt><dd>{numero(horas)}</dd></div>
         <div><dt>Facturado</dt><dd className="dinero">{euros(facturado)}</dd></div>
@@ -49,7 +64,7 @@ export default async function Cliente({ params }) {
 
       {c.notas && <p className="nota">{c.notas}</p>}
 
-      <EditarPersona tipo="cliente" persona={c} />
+      <EditarPersona tipo="cliente" persona={c} colaboradores={colaboradores} />
 
       <h2>Por mes</h2>
       <div className="tabla-envoltorio">

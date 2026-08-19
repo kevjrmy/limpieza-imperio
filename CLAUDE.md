@@ -416,6 +416,35 @@ señalar a una persona cuando hay dos que se llaman parecido, que es justo donde
   números. Sirve para distinguirlas; unirlas sigue siendo cosa de `/revisar`,
   una a una y decidiéndolo él.
 
+## Quién suele ir a cada cliente
+
+La ficha del cliente lleva un **colaborador habitual**: él lo pidió como «el
+nombre del trabajador y su teléfono». Se resolvió con una referencia a
+`colaboradores`, no con dos casillas de texto, y las dos mitades de esa decisión
+importan.
+
+**El nombre se elige de la lista, no se escribe.** Un nombre escrito a mano
+crea una segunda versión de una persona que ya existe, y eso es justo lo que
+`/revisar` se pasa el día deshaciendo.
+
+**El teléfono NO se guarda en el cliente**: se lee de la ficha del colaborador y
+en el formulario sale como texto, no como campo. Si se pudiera escribir ahí, el
+número de una misma persona quedaría copiado en hasta siete fichas de cliente
+—ése es el máximo real en sus datos— y el día que cambiara de número no habría
+nada que avisara de las otras seis. Es la misma regla que el margen: el dato
+vive en un sitio.
+
+**Es opcional, y lo será casi siempre.** En sus datos sólo el 23 % de los
+clientes ha tenido siempre a la misma persona; más de la mitad han visto pasar a
+tres o más. Por eso no se valida, no se rellena solo y `— sin asignar —` es un
+valor legítimo: obligar a ponerlo sería obligar a inventárselo. Es el mismo
+motivo por el que `recurrencia.js` no propone colaborador al preparar el mes.
+
+**Cuando la persona elegida no tiene teléfono, se dice.** Sale «sin teléfono» en
+ámbar con un enlace a su ficha, porque de sus 154 colaboradores sólo 2 tenían el
+número apuntado: al principio esto va a salir casi siempre, y un hueco en blanco
+sin explicación se lee como que la aplicación no funciona.
+
 ## Invariantes del dominio
 
 - **El margen es `valor − (pago_colab + transporte)`**, y no se escribe en

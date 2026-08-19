@@ -42,6 +42,11 @@ const sentencias = sql
  */
 const COLUMNAS_NUEVAS = [
   { tabla: 'servicios', columna: 'borrador', definicion: 'INTEGER NOT NULL DEFAULT 0' },
+  {
+    tabla: 'clientes',
+    columna: 'colaborador_id',
+    definicion: 'INTEGER REFERENCES colaboradores(id) ON DELETE SET NULL',
+  },
 ];
 
 // El orden importa: las vistas se definen sobre columnas que quizá aún no

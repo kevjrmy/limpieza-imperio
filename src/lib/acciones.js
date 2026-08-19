@@ -297,13 +297,19 @@ export const guardarCliente = accion(async (id, datos) => {
   const nombre = txt(datos.get('nombre'));
   exigir(nombre, 'El cliente necesita un nombre.');
 
+  // Quién suele ir. Vacío es un valor legítimo —y el más común: sólo uno de
+  // cada cuatro clientes ha tenido siempre a la misma persona— así que se
+  // guarda NULL y no un cero, que engancharía con el colaborador nº 0.
+  const colaboradorId = Number(datos.get('colaborador_id')) || null;
+
   const campos = [nombre, txt(datos.get('direccion')), txt(datos.get('telefono')),
-    txt(datos.get('notas')), datos.get('activo') ? 1 : 0];
+    txt(datos.get('notas')), datos.get('activo') ? 1 : 0, colaboradorId];
 
   if (id) {
     await ejecutar(
       `UPDATE clientes SET nombre=?, direccion=?, telefono=?, notas=?, activo=?,
-              editado_en=datetime('now') WHERE id=?`, [...campos, Number(id)]);
+              colaborador_id=?, editado_en=datetime('now') WHERE id=?`,
+      [...campos, Number(id)]);
     refrescar();
     return { ok: true, id: Number(id) };
   }
@@ -315,8 +321,8 @@ export const guardarCliente = accion(async (id, datos) => {
   exigir(!yaEsta, `Ya existe un cliente llamado «${yaEsta?.nombre}». Edítalo en vez de crear otro.`);
 
   const { id: nuevo } = await ejecutar(
-    'INSERT INTO clientes (nombre, direccion, telefono, notas, activo) VALUES (?,?,?,?,?)',
-    campos);
+    `INSERT INTO clientes (nombre, direccion, telefono, notas, activo, colaborador_id)
+     VALUES (?,?,?,?,?,?)`, campos);
   refrescar();
   return { ok: true, id: Number(nuevo) };
 });

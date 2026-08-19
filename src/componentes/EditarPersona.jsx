@@ -9,7 +9,7 @@ import FichaPersona from './FichaPersona.jsx';
  * `compacto` es para dentro de una celda de tabla, donde la barra de sección
  * sobra y el botón tiene que ir solo.
  */
-export default function EditarPersona({ tipo, persona, compacto = false }) {
+export default function EditarPersona({ tipo, persona, compacto = false, colaboradores = [] }) {
   const [abierto, setAbierto] = useState(false);
 
   if (!abierto) {
@@ -23,5 +23,8 @@ export default function EditarPersona({ tipo, persona, compacto = false }) {
     return <div className="barra-seccion"><span />{boton}</div>;
   }
 
-  return <FichaPersona tipo={tipo} persona={persona} alTerminar={() => setAbierto(false)} />;
+  return (
+    <FichaPersona tipo={tipo} persona={persona} colaboradores={colaboradores}
+      alTerminar={() => setAbierto(false)} />
+  );
 }

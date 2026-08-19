@@ -852,7 +852,12 @@ code {
 .campo { display: grid; gap: 0.25rem; }
 .campo--ancho { grid-column: 1 / -1; }
 
-.campo > span {
+/* `:where()` por lo mismo que en las tablas: esto es la regla de estructura y
+   no puede ganarle en especificidad a las utilidades que van dentro. Sin él,
+   `.campo > span` (0,1,1) le gana a `.campo__ayuda` (0,1,0) y TODA la letra de
+   ayuda del programa sale en mayúsculas y en negrita, como si fuera otra
+   etiqueta. Llevaba así desde que existe `FormularioServicio`. */
+.campo > :where(span) {
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -889,7 +894,37 @@ code {
 .campo--casilla span { text-transform: none; letter-spacing: 0; font-size: 0.875rem; color: var(--tinta); }
 .campo--casilla input { width: auto; }
 
-.campo__ayuda { font-size: 0.75rem; color: var(--tinta-tenue); }
+.campo__ayuda {
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--tinta-tenue);
+}
+
+/* Un dato que se enseña dentro del formulario pero no se escribe ahí: el
+   teléfono del colaborador vive en SU ficha. Se pinta con la misma altura que
+   un campo para que la fila no baile, pero sin recuadro — un recuadro dice
+   «escribe aquí» y aquí no se escribe. */
+.campo__leido {
+  margin: 0;
+  padding: 0.4rem 0;
+  font-size: 0.875rem;
+  min-height: 2.1rem;
+}
+
+/* Falta un dato y hace falta decirlo: sólo 2 de sus 154 colaboradores tienen
+   teléfono apuntado, así que esto va a salir mucho al principio. Callar aquí
+   sería enseñar un hueco en blanco y dejarle adivinar por qué. */
+.campo__falta { color: var(--revisar); }
+
+/* Segunda línea dentro de una celda, para el teléfono debajo del nombre. */
+.celda-nota__pie {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--tinta-media);
+  font-variant-numeric: tabular-nums;
+}
 
 .formulario__acciones {
   grid-column: 1 / -1;

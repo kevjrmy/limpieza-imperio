@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import FichaPersona from '../../../componentes/FichaPersona.jsx';
 import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
-import { clientes, cliente } from '../../../lib/consultas.js';
+import { clientes, cliente, listaColaboradores } from '../../../lib/consultas.js';
 import { euros, numero, entero, porcentaje, fecha, codigo } from '../../../lib/formato.js';
 import { tonoDinero } from '../../../componentes/formato.js';
 
@@ -12,6 +12,7 @@ export default async function Clientes({ searchParams }) {
   const p = await searchParams;
   const busqueda = typeof p?.q === 'string' ? p.q : '';
   const lista = await clientes({ busqueda });
+  const colaboradores = await listaColaboradores();
 
   // Id del cliente recién dado de alta, si viene de guardar. La tabla va por
   // margen, así que uno nuevo —que no tiene— se hunde hasta el final: sin esto
@@ -34,7 +35,7 @@ export default async function Clientes({ searchParams }) {
         {busqueda && <Link className="boton boton--plano" href="/clientes">Quitar filtro</Link>}
       </form>
 
-      <FichaPersona tipo="cliente" />
+      <FichaPersona tipo="cliente" colaboradores={colaboradores} />
 
       {recien && (
         <AvisoNuevo id={recien.id}>
@@ -60,6 +61,7 @@ export default async function Clientes({ searchParams }) {
               <th scope="col">Cliente</th>
               <th scope="col">Dirección</th>
               <th scope="col">Teléfono</th>
+              <th scope="col">Colaborador</th>
               <th scope="col" className="num">Servicios</th>
               <th scope="col" className="num">Horas</th>
               <th scope="col" className="num">Facturado</th>
@@ -79,6 +81,16 @@ export default async function Clientes({ searchParams }) {
                 </th>
                 <td className="celda-nota">{c.direccion}</td>
                 <td className="celda-nota">{c.telefono}</td>
+                <td className="celda-nota">
+                  {c.colaborador_nombre ? (
+                    <>
+                      {c.colaborador_nombre}
+                      {c.colaborador_telefono
+                        ? <span className="celda-nota__pie">{c.colaborador_telefono}</span>
+                        : <span className="celda-nota__pie tenue">sin teléfono</span>}
+                    </>
+                  ) : <span className="tenue">—</span>}
+                </td>
                 <td className="num">{entero(c.servicios)}</td>
                 <td className="num">{numero(c.horas)}</td>
                 <td className="dinero">{euros(c.facturado)}</td>

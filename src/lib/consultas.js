@@ -78,6 +78,7 @@ export const clientes = protegida(_clientes);
 export const cliente = protegida(_cliente);
 export const serviciosDeCliente = protegida(_serviciosDeCliente);
 export const colaboradores = protegida(_colaboradores);
+export const listaColaboradores = protegida(_listaColaboradores);
 export const colaborador = protegida(_colaborador);
 export const servicios = protegida(_servicios);
 export const contarServicios = protegida(_contarServicios);
@@ -155,12 +156,16 @@ async function _periodos() {
 async function _clientes({ busqueda = '', periodo = '' } = {}) {
   const filas = await consultar(`
     SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
+           c.colaborador_id,
+           co.nombre                         AS colaborador_nombre,
+           co.telefono                       AS colaborador_telefono,
            COUNT(s.id)                       AS servicios,
            COALESCE(SUM(s.horas), 0)         AS horas,
            COALESCE(SUM(s.valor), 0)         AS facturado,
            COALESCE(SUM(s.margen), 0)        AS margen,
            MAX(s.fecha)                      AS ultimo
       FROM clientes c
+      LEFT JOIN colaboradores co ON co.id = c.colaborador_id
       LEFT JOIN v_servicios s
              ON s.cliente_id = c.id
             AND (?1 = '' OR s.periodo = ?1)
@@ -171,7 +176,24 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
 }
 
 async function _cliente(id) {
-  return consultarUna('SELECT * FROM clientes WHERE id = ?', [id]);
+  return consultarUna(`
+    SELECT c.*,
+           co.nombre   AS colaborador_nombre,
+           co.telefono AS colaborador_telefono
+      FROM clientes c
+      LEFT JOIN colaboradores co ON co.id = c.colaborador_id
+     WHERE c.id = ?`, [id]);
+}
+
+/**
+ * La lista escueta de colaboradores, para los desplegables.
+ *
+ * `_colaboradores` no vale aquí: arrastra los agregados de pagos y horas, que
+ * cuestan lo suyo y no se usan para elegir un nombre de una lista.
+ */
+async function _listaColaboradores() {
+  return consultar(
+    'SELECT id, nombre, telefono, activo FROM colaboradores ORDER BY nombre');
 }
 
 async function _serviciosDeCliente(id) {

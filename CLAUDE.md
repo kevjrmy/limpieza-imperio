@@ -690,10 +690,26 @@ sin permiso». O las credenciales coinciden o no coinciden.
   COOP/COEP — no hay OPFS.
 - **`next.config.mjs` lleva `deploymentId`, y hace falta.** Sale de
   `VERCEL_DEPLOYMENT_ID` (con el sha del commit de reserva), así que cambia solo
-  en cada despliegue. Con él, Next cuelga `?dpl=…` de cada archivo estático —el
-  navegador no puede reutilizar el de ayer— y compara la marca del cliente con
-  la suya en cada navegación: si no coinciden, recarga la página entera en vez
-  de seguir ejecutando código viejo. Sin eso, la pestaña que él deja abierta
+  en cada despliegue. Next compara la marca del cliente con la suya en cada
+  navegación: si no coinciden, recarga la página entera en vez de seguir
+  ejecutando código viejo.
+
+  **Para comprobar que sigue puesto NO mires `?dpl=`.** La documentación de Next
+  dice que lo cuelga de los archivos estáticos, y es verdad a medias: con Next 16
+  los estáticos van bajo `/_next/static/immutable/`, con el hash en la propia
+  ruta, así que ahí el parámetro sobra y no aparece. Buscarlo da cero y parece
+  una avería —pasó, y costó un rato—. Lo que hay que mirar es esto:
+
+  ```bash
+  curl -s https://limpiezas-imperio.vercel.app/entrar | grep -o '<html[^>]*>'
+  #   <html data-dpl-id="dpl_…" lang="es">
+  curl -s -o /dev/null -D - -H 'RSC: 1' https://limpiezas-imperio.vercel.app/entrar \
+    | grep -i x-nextjs-deployment-id
+  #   x-nextjs-deployment-id: dpl_…
+  ```
+
+  Esa cabecera es la que dispara la recarga; el atributo es la marca que lleva
+  el cliente. Si las dos están y coinciden, funciona. Sin eso, la pestaña que él deja abierta
   días manda identificadores de acciones de un build que ya no existe y guardar
   falla; ver *Un fallo al guardar no puede quedarse mudo*. En local las dos
   variables están vacías y queda `undefined`, que es lo de siempre.

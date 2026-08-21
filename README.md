@@ -341,8 +341,16 @@ campos. El barrio es lo que de verdad usa para repartir el trabajo —quién pil
 cerca de qué cliente— y dentro de una línea de texto libre no hay manera de
 mirarlo de un vistazo. En la tabla van juntos en una sola columna.
 
-El cliente no tiene barrio ni provincia, y no es un olvido: la dirección del
-cliente **es** el sitio al que se va, no dónde vive nadie.
+**En el cliente, dónde es.** Dirección, código postal y provincia, también en
+campos sueltos. Los pidió después, viendo la pantalla ya hecha: la dirección
+sola no le sirve para un presupuesto ni para una factura. En la tabla van juntos
+en una sola columna, con el código postal y la provincia debajo de la calle.
+
+El cliente lleva código postal y el colaborador barrio, y la asimetría es
+buscada: de dónde vive el colaborador lo que él mira es el barrio, para saber
+quién pilla cerca de qué casa; de la dirección del cliente, el código postal.
+Ninguno de los dos hace falta en la otra ficha. Y la dirección del cliente sigue
+sin ser dónde vive nadie: **es** el sitio al que se va.
 
 **Que sea una referencia y no un texto tiene una consecuencia que hubo que
 atender.** La columna es `ON DELETE SET NULL`, así que borrar a un colaborador
@@ -378,8 +386,9 @@ No hay tabla de usuarios ni de sesiones, y es deliberado: la autenticación no
 escribe nada en la base. Ver *Autenticación*.
 
 `clientes.colaborador_id` apunta a quién suele ir. `colaboradores` lleva
-`direccion`, `barrio` y `provincia`. Las cuatro columnas se añaden solas sobre
-una base que ya tiene datos (`COLUMNAS_NUEVAS` en `scripts/esquema.mjs`), porque
+`direccion`, `barrio` y `provincia`; `clientes`, `direccion`, `codigo_postal` y
+`provincia`. Todas esas columnas se añaden solas sobre una base que ya tiene
+datos (`COLUMNAS_NUEVAS` en `scripts/esquema.mjs`), porque
 `CREATE TABLE IF NOT EXISTS` no toca una tabla que ya existe.
 
 Cada fila sembrada conserva su `origen` (`CLIENTES AGOSTO 2026!86`), así que

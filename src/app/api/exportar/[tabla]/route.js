@@ -61,6 +61,8 @@ const TABLAS = {
       { campo: 'id', titulo: 'Nº' },
       { campo: 'nombre', titulo: 'Cliente' },
       { campo: 'direccion', titulo: 'Dirección' },
+      { campo: 'codigo_postal', titulo: 'Código postal' },
+      { campo: 'provincia', titulo: 'Provincia' },
       { campo: 'telefono', titulo: 'Teléfono' },
       { campo: 'colaborador_nombre', titulo: 'Colaborador habitual' },
       { campo: 'colaborador_telefono', titulo: 'Teléfono del colaborador' },
@@ -72,7 +74,8 @@ const TABLAS = {
       { campo: 'notas', titulo: 'Notas' },
     ],
     sql: `
-      SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
+      SELECT c.id, c.nombre, c.direccion, c.codigo_postal, c.provincia,
+             c.telefono, c.notas,
              co.nombre   AS colaborador_nombre,
              co.telefono AS colaborador_telefono,
              COUNT(s.id) AS servicios,

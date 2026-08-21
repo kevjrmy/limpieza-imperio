@@ -22,7 +22,18 @@ CREATE TABLE IF NOT EXISTS clientes (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   ref         TEXT UNIQUE,             -- id del modelo (CLI-001), para trazar
   nombre      TEXT NOT NULL,
-  direccion   TEXT NOT NULL DEFAULT '',
+
+  -- Dónde se va a trabajar. La dirección del cliente NO es dónde vive nadie:
+  -- es el sitio al que se va, y por eso no lleva barrio como la del
+  -- colaborador. El código postal y la provincia van sueltos, no dentro de la
+  -- línea de dirección, por lo mismo que el barrio en colaboradores: metidos en
+  -- un texto libre no hay forma de mirarlos de un vistazo ni de sacarlos en una
+  -- exportación. Los tres son opcionales — el libro venía con la dirección a
+  -- medias en muchos clientes y con el código postal en ninguno.
+  direccion     TEXT NOT NULL DEFAULT '',
+  codigo_postal TEXT NOT NULL DEFAULT '',
+  provincia     TEXT NOT NULL DEFAULT '',
+
   telefono    TEXT NOT NULL DEFAULT '',
   notas       TEXT NOT NULL DEFAULT '',
   activo      INTEGER NOT NULL DEFAULT 1,

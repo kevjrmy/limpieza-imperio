@@ -79,7 +79,17 @@ export default async function Clientes({ searchParams }) {
                 <th scope="row" className="celda-nombre">
                   <Link href={`/clientes/${c.id}`}>{c.nombre}</Link>
                 </th>
-                <td className="celda-nota">{c.direccion}</td>
+                {/* Las tres juntas y no en tres columnas, igual que «dónde
+                    vive» en colaboradores: el código postal y la provincia se
+                    leen como el pie de la dirección, no como datos aparte. */}
+                <td className="celda-nota">
+                  {c.direccion}
+                  {(c.codigo_postal || c.provincia) && (
+                    <span className="celda-nota__pie">
+                      {[c.codigo_postal, c.provincia].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </td>
                 <td className="celda-nota">{c.telefono}</td>
                 <td className="celda-nota">
                   {c.colaborador_nombre ? (

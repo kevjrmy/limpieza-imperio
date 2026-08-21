@@ -36,7 +36,12 @@ export default async function Cliente({ params }) {
 
       <dl className="ficha">
         <div><dt>Dirección</dt><dd>{c.direccion || '—'}</dd></div>
-        <div><dt>Teléfono</dt><dd>{c.telefono || '—'}</dd></div>
+        <div><dt>Código postal</dt><dd>{c.codigo_postal || '—'}</dd></div>
+        <div><dt>Provincia</dt><dd>{c.provincia || '—'}</dd></div>
+        <div>
+          <dt>Teléfono</dt>
+          <dd>{c.telefono ? <a href={`tel:${c.telefono}`}>{c.telefono}</a> : '—'}</dd>
+        </div>
         <div>
           <dt>Colaborador habitual</dt>
           <dd>

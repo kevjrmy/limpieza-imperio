@@ -18,9 +18,11 @@ import { intentar } from './intentar.js';
  * archivos casi idénticos es la manera segura de que dentro de un mes uno
  * valide algo que el otro no.
  *
- * Lo único que tiene el cliente y no el colaborador, además de la dirección, es
- * el colaborador habitual: quién suele ir. `colaboradores` es la lista para el
- * desplegable y sólo hace falta cuando `tipo` es cliente.
+ * Los dos llevan dirección y provincia; el cliente además código postal y el
+ * colaborador barrio, por lo que se explica más abajo. Y lo único que tiene el
+ * cliente y no el colaborador es el colaborador habitual: quién suele ir.
+ * `colaboradores` es la lista para el desplegable y sólo hace falta cuando
+ * `tipo` es cliente.
  */
 export default function FichaPersona({ tipo, persona, alTerminar, colaboradores = [] }) {
   const esCliente = tipo === 'cliente';
@@ -91,9 +93,22 @@ export default function FichaPersona({ tipo, persona, alTerminar, colaboradores 
         <input type="text" name="direccion" defaultValue={persona?.direccion ?? ''} />
       </label>
 
-      {/* Del colaborador le interesa dónde vive para repartir el trabajo: quién
-          pilla cerca de qué cliente. Del cliente no hace falta — la dirección
-          del cliente ES el sitio al que se va. */}
+      {/* El código postal es del cliente y el barrio del colaborador, y no es un
+          descuido: de la dirección del colaborador lo que él mira es el barrio,
+          para saber quién pilla cerca de qué casa; de la del cliente, el código
+          postal, que es lo que se escribe en un presupuesto o en una factura.
+          Ninguno de los dos hace falta en la otra ficha. La provincia sí va en
+          las dos. */}
+      {esCliente && (
+        <label className="campo">
+          <span>Código postal</span>
+          {/* Texto y no `number`: los de Valencia empiezan por 4 pero los de
+              Madrid por 0, y un campo numérico se come ese cero delante. */}
+          <input type="text" name="codigo_postal" inputMode="numeric" maxLength={5}
+            defaultValue={persona?.codigo_postal ?? ''} />
+        </label>
+      )}
+
       {!esCliente && (
         <label className="campo">
           <span>Barrio</span>
@@ -101,12 +116,10 @@ export default function FichaPersona({ tipo, persona, alTerminar, colaboradores 
         </label>
       )}
 
-      {!esCliente && (
-        <label className="campo">
-          <span>Provincia</span>
-          <input type="text" name="provincia" defaultValue={persona?.provincia ?? ''} />
-        </label>
-      )}
+      <label className="campo">
+        <span>Provincia</span>
+        <input type="text" name="provincia" defaultValue={persona?.provincia ?? ''} />
+      </label>
 
       <label className="campo">
         <span>Teléfono</span>

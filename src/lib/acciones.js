@@ -302,12 +302,14 @@ export const guardarCliente = accion(async (id, datos) => {
   // guarda NULL y no un cero, que engancharía con el colaborador nº 0.
   const colaboradorId = Number(datos.get('colaborador_id')) || null;
 
-  const campos = [nombre, txt(datos.get('direccion')), txt(datos.get('telefono')),
+  const campos = [nombre, txt(datos.get('direccion')), txt(datos.get('codigo_postal')),
+    txt(datos.get('provincia')), txt(datos.get('telefono')),
     txt(datos.get('notas')), datos.get('activo') ? 1 : 0, colaboradorId];
 
   if (id) {
     await ejecutar(
-      `UPDATE clientes SET nombre=?, direccion=?, telefono=?, notas=?, activo=?,
+      `UPDATE clientes SET nombre=?, direccion=?, codigo_postal=?, provincia=?,
+              telefono=?, notas=?, activo=?,
               colaborador_id=?, editado_en=datetime('now') WHERE id=?`,
       [...campos, Number(id)]);
     refrescar();
@@ -321,8 +323,9 @@ export const guardarCliente = accion(async (id, datos) => {
   exigir(!yaEsta, `Ya existe un cliente llamado «${yaEsta?.nombre}». Edítalo en vez de crear otro.`);
 
   const { id: nuevo } = await ejecutar(
-    `INSERT INTO clientes (nombre, direccion, telefono, notas, activo, colaborador_id)
-     VALUES (?,?,?,?,?,?)`, campos);
+    `INSERT INTO clientes (nombre, direccion, codigo_postal, provincia, telefono,
+                           notas, activo, colaborador_id)
+     VALUES (?,?,?,?,?,?,?,?)`, campos);
   refrescar();
   return { ok: true, id: Number(nuevo) };
 });

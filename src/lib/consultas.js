@@ -155,7 +155,8 @@ async function _periodos() {
 // así que se puede leer entera aquí y no hay forma de colar texto en ella.
 async function _clientes({ busqueda = '', periodo = '' } = {}) {
   const filas = await consultar(`
-    SELECT c.id, c.nombre, c.direccion, c.telefono, c.notas,
+    SELECT c.id, c.nombre, c.direccion, c.codigo_postal, c.provincia,
+           c.telefono, c.notas,
            c.colaborador_id,
            co.nombre                         AS colaborador_nombre,
            co.telefono                       AS colaborador_telefono,

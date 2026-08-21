@@ -512,13 +512,31 @@ En la tabla se enseñan en **una sola columna** —«Dónde vive»— con la cal
 arriba y `barrio · provincia` debajo: la tabla ya tenía ocho columnas y las tres
 se leen como una sola cosa.
 
-**El cliente no tiene barrio ni provincia**, sólo dirección, y es a propósito:
-la dirección del cliente ES el sitio al que se va, no dónde vive nadie. Si algún
-día hace falta, es la misma migración.
+## Dónde es cada cliente
 
-`provincia` es texto libre. Con un solo usuario y casi todo en una provincia no
-compensaba una lista cerrada; si algún día conviven «Valencia», «VALENCIA» y
-«València» en las exportaciones, ahí está el motivo y el arreglo es una lista.
+La ficha del cliente lleva **dirección, código postal y provincia**. Los tres
+son opcionales y ninguno se valida: el libro venía con la dirección a medias en
+muchos clientes y con el código postal en ninguno.
+
+**El cliente lleva código postal y el colaborador barrio, y no es un descuido.**
+De la dirección del colaborador lo que él mira es el barrio, para repartir el
+trabajo; de la del cliente, el código postal, que es lo que se escribe en un
+presupuesto. La provincia va en las dos. Si añades el que falta en alguna,
+que sea porque él lo pide, no por simetría.
+
+**La dirección del cliente sigue sin ser dónde vive nadie**: es el sitio al que
+se va, y por eso no lleva barrio.
+
+En la tabla de `/clientes` van en la columna «Dirección», con la calle arriba y
+`código postal · provincia` debajo — igual que «Dónde vive» en colaboradores.
+
+El código postal es **texto**, no número: los de Valencia empiezan por 4 pero
+los de Madrid por 0, y un `<input type="number">` se come ese cero.
+
+`provincia` es texto libre en las dos tablas. Con un solo usuario y casi todo en
+una provincia no compensaba una lista cerrada; si algún día conviven «Valencia»,
+«VALENCIA» y «València» en las exportaciones, ahí está el motivo y el arreglo es
+una lista.
 
 ## Invariantes del dominio
 

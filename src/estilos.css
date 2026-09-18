@@ -1116,6 +1116,11 @@ code {
 
 .documento__importes tbody th { font-weight: 400; }
 .documento__subtotal :where(th, td) { border-top: 1px solid var(--linea-fuerte); font-weight: 600; }
+/* Los totales del presupuesto van al pie de su tabla: base, IVA y total, y sólo
+   el total lleva la raya gruesa. */
+.documento__tabla .documento__totales :where(th, td) { border-top: 0; font-weight: 400; }
+.documento__tabla .documento__totales .documento__subtotal :where(th, td) { border-top: 1px solid var(--linea-fuerte); font-weight: 600; }
+.documento__tabla .documento__totales .documento__total :where(th, td) { border-top: 2px solid var(--tinta); font-weight: 700; }
 
 .documento__personal { margin: 0; padding-left: 1.1rem; }
 .documento__vacio { color: var(--tinta-tenue); font-style: italic; }

@@ -580,7 +580,7 @@ export const rechazarFusion = accion(async (id) => {
   return { ok: true };
 });
 
-// ── Hojas de servicio y cuentas de cobro ────────────────────────────────────
+// ── Presupuestos, hojas de servicio y cuentas de cobro ────────────────────────────────────
 
 /**
  * Guarda un documento. Sin `id` crea uno NUEVO, y eso es también lo que hace

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Documento from './Documento.jsx';
 import FormularioDocumento from './FormularioDocumento.jsx';
 import { borrarDocumento } from '../lib/acciones.js';
-import { TIPOS, copiaParaNueva, documentoVacio, paraFormulario } from '../lib/documentos.js';
+import { TIPOS, copiaParaNueva, documentoVacio, genero, paraFormulario } from '../lib/documentos.js';
 import { intentar } from './intentar.js';
 import { codigo } from '../lib/formato.js';
 
@@ -43,6 +43,16 @@ export default function PanelDocumento({ doc: delServidor, siguiente, clientes, 
     });
   }
 
+  // El navegador propone como nombre del PDF el título de la página: sin esto,
+  // todos se guardaban como «Limpiezas El Imperio.pdf».
+  function imprimir() {
+    const antes = document.title;
+    const cliente = doc.contenido?.cliente?.nombre;
+    document.title = `${t.nombre} ${codigo(doc.numero).slice(1)}${cliente ? ` - ${cliente}` : ''}`;
+    window.addEventListener('afterprint', () => { document.title = antes; }, { once: true });
+    window.print();
+  }
+
   if (modo === 'editar') {
     return (
       <FormularioDocumento tipo={doc.tipo} id={doc.id} numero={doc.numero}
@@ -67,9 +77,9 @@ export default function PanelDocumento({ doc: delServidor, siguiente, clientes, 
       {error && <p className="alerta alerta--error no-imprimir">{error}</p>}
       <div className="barra-documento no-imprimir">
         <button type="button" className="boton boton--principal" onClick={() => setModo('copiar')}>
-          Nueva a partir de esta
+          {genero(t, 'Nueva a partir de esta', 'Nuevo a partir de este')}
         </button>
-        <button type="button" className="boton" onClick={() => window.print()}>
+        <button type="button" className="boton" onClick={imprimir}>
           Imprimir o guardar PDF
         </button>
         <button type="button" className="boton" onClick={() => setModo('editar')}>
@@ -98,7 +108,7 @@ export function NuevoDocumento({ tipo, siguiente, clientes, colaboradores }) {
         <span />
         <button type="button" className="boton boton--principal"
           onClick={() => setInicial(documentoVacio(tipo))}>
-          Nueva {t.nombre.toLowerCase()}
+          {genero(t, 'Nueva', 'Nuevo')} {t.nombre.toLowerCase()}
         </button>
       </div>
     );

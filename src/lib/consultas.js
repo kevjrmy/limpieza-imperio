@@ -493,12 +493,16 @@ async function _pendientes() {
            (SELECT COUNT(*) FROM servicios WHERE borrador = 1)     AS borradores`);
 }
 
-// ── Hojas de servicio y cuentas de cobro ────────────────────────────────────
+// ── Presupuestos, hojas de servicio y cuentas de cobro ────────────────────────────────────
 
-/** Los de un tipo, del número más alto al más bajo: lo último hecho, arriba. */
+/**
+ * Los de un tipo, del número más alto al más bajo: lo último hecho, arriba.
+ * `estado` sólo lo tienen los presupuestos; en los demás sale NULL.
+ */
 async function _documentos(tipo, { busqueda = '' } = {}) {
   const filas = await consultar(`
-    SELECT id, numero, fecha, cliente_id, cliente_nombre, total, editado_en
+    SELECT id, numero, fecha, cliente_id, cliente_nombre, total, editado_en,
+           json_extract(contenido, '$.estado') AS estado
       FROM documentos WHERE tipo = ?
      ORDER BY numero DESC`, [tipo]);
   if (!busqueda) return filas;

@@ -412,13 +412,51 @@ cumpla VERI\*FACTU. Sus facturas las lleva la gestoría. El número de cuenta de
 cobro empieza proponiendo el 24 porque su Excel iba por el 23; él lo puede
 cambiar, pero no repetir.
 
+## Presupuestos
+
+Él lo pidió con cinco palabras —«solo me falta una hoja de presupuesto»— y sin
+poder preguntarle más, así que se montó sobre lo que ya había: la pestaña
+`COTIZACION DE SERVICIO` de su Excel (su palabra colombiana para presupuesto),
+la de `PRECIO POR HORAS` y lo que dice su web. Es un tercer papel, igual que
+los otros dos: se guarda con su número, se edita, **«Nuevo a partir de este»**
+saca una copia, y se imprime o se guarda en PDF con su logo.
+
+Lo que lleva, y por qué:
+
+- **Líneas de cantidad × precio**, y el importe sale de multiplicar. Es al
+  revés que en la cuenta de cobro, porque aquí se parte de la tarifa: su web
+  dice que «normalmente se cobra por horas, y algunos servicios tienen precio
+  cerrado». Por horas, las horas en cantidad; precio cerrado, cantidad 1.
+- **Base imponible, IVA y total.** El IVA nace al 21 % como en la hoja de
+  servicio, y a 0 si no lo lleva.
+- **Tipo de servicio y frecuencia**, con sugerencias sacadas de su web («cada
+  quince días» era justo lo que ponía su cotización). Texto libre.
+- **Productos incluidos**, marcado de entrada: su web dice que van incluidos.
+- **Válido durante N días** (30 de entrada), y se imprime la fecha hasta la que
+  vale. Vacío es «sin plazo».
+- **Condiciones y observaciones**, texto libre.
+- **Firma de «Aceptado por el cliente»**: un presupuesto firmado es el encargo.
+- **Estado —pendiente, aceptado, rechazado—**, que no se imprime: sale en la
+  lista para que vea qué presupuestos salieron adelante. La copia vuelve a
+  pendiente.
+
+Lo que no hace, a propósito: no se convierte en servicios ni en cuenta de
+cobro. Un presupuesto aceptado todavía no es trabajo hecho, y engancharlo a la
+contabilidad sería contar dinero que no ha entrado. Si él lo echa en falta,
+ése es el siguiente paso natural.
+
+Al imprimir, el título de la página pasa a ser «Presupuesto 001 - Cliente», que
+es el nombre que el navegador propone para el PDF. Vale igual para los otros
+dos papeles, que antes se guardaban todos como «Limpiezas El Imperio.pdf».
+
 ## Esquema
 
 `clientes`, `colaboradores`, `servicios` y la tabla de unión
 `servicio_colaborador` — un servicio puede llevar varias personas, que es
 exactamente lo que la celda apretujada del Excel debería haber sido. Aparte:
 `gastos`, `costes_fijos`, `cierres`, `avisos` y `fusiones`. Y `documentos`, con
-las hojas de servicio y las cuentas de cobro, que no suman en nada.
+los presupuestos, las hojas de servicio y las cuentas de cobro, que no suman en
+nada.
 
 No hay tabla de usuarios ni de sesiones, y es deliberado: la autenticación no
 escribe nada en la base. Ver *Autenticación*.

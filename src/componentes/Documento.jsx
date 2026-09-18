@@ -1,9 +1,10 @@
 import { negocio } from '../lib/negocio.js';
-import { TIPOS, IMPORTES_HOJA, calcular, leerNumero } from '../lib/documentos.js';
+import { TIPOS, IMPORTES_HOJA, calcular, leerNumero, validoHasta } from '../lib/documentos.js';
 import { euros, numero as cifra, fecha as comoFecha, codigo } from '../lib/formato.js';
 
 /**
- * El papel tal y como se imprime: una hoja de servicio o una cuenta de cobro.
+ * El papel tal y como se imprime: un presupuesto, una hoja de servicio o una
+ * cuenta de cobro.
  *
  * Sigue la maquetación de sus hojas de Excel —logo y datos arriba, el cliente,
  * la tabla, los importes y las firmas debajo— para que al imprimirlo se
@@ -18,8 +19,9 @@ export default function Documento({ tipo, numero, contenido }) {
   return (
     <article className="documento" aria-label={`${TIPOS[tipo].nombre} ${codigo(numero)}`}>
       <Cabecera tipo={tipo} numero={numero} d={d} />
-      {tipo === 'hoja' ? <CuerpoHoja d={d} /> : <CuerpoCobro d={d} />}
-      <Firmas />
+      {tipo === 'presupuesto' ? <CuerpoPresupuesto d={d} />
+        : tipo === 'hoja' ? <CuerpoHoja d={d} /> : <CuerpoCobro d={d} />}
+      <Firmas cliente={tipo === 'presupuesto' ? 'Aceptado por el cliente' : 'Cliente'} />
       <p className="documento__despedida">{negocio.despedida}</p>
     </article>
   );
@@ -41,6 +43,9 @@ function Cabecera({ tipo, numero, d }) {
         <p className="documento__numero">{codigo(numero)}</p>
         <p>{comoFecha(d.fecha)}{d.hora ? ` · ${d.hora} h` : ''}</p>
         {tipo === 'cobro' && d.ciudad && <p>{d.ciudad}</p>}
+        {tipo === 'presupuesto' && (
+          <p>{validoHasta(d) ? `Válido hasta el ${comoFecha(validoHasta(d))}` : 'Sin plazo de validez'}</p>
+        )}
       </div>
     </header>
   );
@@ -70,6 +75,74 @@ function DatosCliente({ c = {} }) {
         <Dato etiqueta="Código postal">{c.codigoPostal}</Dato>
       </dl>
     </section>
+  );
+}
+
+function CuerpoPresupuesto({ d }) {
+  const t = calcular('presupuesto', d);
+  const partidas = d.partidas ?? [];
+
+  return (
+    <>
+      <div className="documento__columnas">
+        <DatosCliente c={d.cliente} />
+        <section className="documento__bloque">
+          <h3 className="documento__seccion">Servicio</h3>
+          <dl className="documento__datos">
+            <Dato etiqueta="Tipo de servicio" ancho>{d.servicio}</Dato>
+            <Dato etiqueta="Frecuencia" ancho>{d.frecuencia}</Dato>
+            <Dato etiqueta="Productos de limpieza" ancho>
+              {d.productosIncluidos ? 'Incluidos en el precio' : 'No incluidos'}
+            </Dato>
+          </dl>
+        </section>
+      </div>
+
+      <section className="documento__bloque">
+        <h3 className="documento__seccion">Detalle</h3>
+        <table className="documento__tabla">
+          <thead>
+            <tr>
+              <th scope="col">Descripción</th>
+              <th scope="col" className="num">Cantidad</th>
+              <th scope="col" className="num">Precio</th>
+              <th scope="col" className="num">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {partidas.map((p, i) => (
+              <tr key={i}>
+                <td>{p.descripcion}</td>
+                <td className="num">{cifra(t.partidas[i].cantidad)}</td>
+                <td className="dinero">{euros(t.partidas[i].precio)}</td>
+                <td className="dinero">{euros(t.partidas[i].importe)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="documento__totales">
+            <tr className="documento__subtotal">
+              <th scope="row" colSpan={3} className="num">Base imponible</th>
+              <td className="dinero">{euros(t.subtotal)}</td>
+            </tr>
+            <tr>
+              <th scope="row" colSpan={3} className="num">IVA {cifra(t.ivaPorcentaje)} %</th>
+              <td className="dinero">{euros(t.iva)}</td>
+            </tr>
+            <tr className="documento__total">
+              <th scope="row" colSpan={3} className="num">Total</th>
+              <td className="dinero">{euros(t.total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      {d.observaciones && (
+        <section className="documento__bloque">
+          <h3 className="documento__seccion">Condiciones y observaciones</h3>
+          <p className="documento__texto">{d.observaciones}</p>
+        </section>
+      )}
+    </>
   );
 }
 
@@ -234,7 +307,7 @@ function CuerpoCobro({ d }) {
   );
 }
 
-function Firmas() {
+function Firmas({ cliente }) {
   return (
     <footer className="documento__firmas">
       <div>
@@ -244,7 +317,7 @@ function Firmas() {
       </div>
       <div>
         <span className="documento__firma-raya" />
-        <p>Cliente</p>
+        <p>{cliente}</p>
       </div>
     </footer>
   );

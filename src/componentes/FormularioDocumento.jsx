@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 
 import { guardarDocumento } from '../lib/acciones.js';
 import {
-  TIPOS, IMPORTES_HOJA, calcular, clienteDesdeFicha, nuevaLinea, nuevaTarea,
+  TIPOS, IMPORTES_HOJA, ESTADOS_PRESUPUESTO, SERVICIOS_SUGERIDOS, FRECUENCIAS_SUGERIDAS,
+  calcular, clienteDesdeFicha, genero, nuevaLinea, nuevaPartida, nuevaTarea, validoHasta,
 } from '../lib/documentos.js';
-import { euros, numero as cifra, codigo } from '../lib/formato.js';
+import { euros, numero as cifra, codigo, fecha as comoFecha } from '../lib/formato.js';
 import { intentar } from './intentar.js';
 
 /**
- * Rellenar una hoja de servicio o una cuenta de cobro.
+ * Rellenar un presupuesto, una hoja de servicio o una cuenta de cobro.
  *
  * Sirve para las tres cosas: una en blanco, editar una guardada, y «nueva a
  * partir de esta». Las dos que crean se distinguen de editar sólo en que no
@@ -71,7 +72,7 @@ export default function FormularioDocumento({
 
   const titulo = id ? `Editar ${t.articulo} ${codigo(numeroInicial)}`
     : origen ? `Nueva a partir de ${t.articulo} ${codigo(origen)}`
-      : `Nueva ${t.nombre.toLowerCase()}`;
+      : `${genero(t, 'Nueva', 'Nuevo')} ${t.nombre.toLowerCase()}`;
 
   return (
     <form className="formulario formulario--documento" onSubmit={enviar}>
@@ -95,7 +96,42 @@ export default function FormularioDocumento({
         <input type="date" required value={d.fecha} onChange={(e) => poner('fecha', e.target.value)} />
       </label>
 
-      {tipo === 'hoja' ? (
+      {tipo === 'presupuesto' ? (
+        <>
+          <div className="campo">
+            <span><label htmlFor="documento-validez">Válido durante (días)</label></span>
+            <input id="documento-validez" type="text" inputMode="numeric" value={d.validez}
+              onChange={(e) => poner('validez', e.target.value)} />
+            <span className="campo__ayuda">
+              {validoHasta(d) ? `Hasta el ${comoFecha(validoHasta(d))}.` : 'Vacío: sin plazo.'}
+            </span>
+          </div>
+          <label className="campo">
+            <span>Estado</span>
+            <select value={d.estado} onChange={(e) => poner('estado', e.target.value)}>
+              {Object.entries(ESTADOS_PRESUPUESTO).map(([v, texto]) => (
+                <option key={v} value={v}>{texto}</option>
+              ))}
+            </select>
+          </label>
+          <label className="campo">
+            <span>Tipo de servicio</span>
+            <input type="text" list="documento-servicios" value={d.servicio}
+              placeholder="Limpieza de oficinas…" onChange={(e) => poner('servicio', e.target.value)} />
+            <datalist id="documento-servicios">
+              {SERVICIOS_SUGERIDOS.map((x) => <option key={x} value={x} />)}
+            </datalist>
+          </label>
+          <label className="campo">
+            <span>Frecuencia</span>
+            <input type="text" list="documento-frecuencias" value={d.frecuencia}
+              placeholder="Cada quince días…" onChange={(e) => poner('frecuencia', e.target.value)} />
+            <datalist id="documento-frecuencias">
+              {FRECUENCIAS_SUGERIDAS.map((x) => <option key={x} value={x} />)}
+            </datalist>
+          </label>
+        </>
+      ) : tipo === 'hoja' ? (
         <>
           <label className="campo">
             <span>Hora</span>
@@ -124,12 +160,12 @@ export default function FormularioDocumento({
       <Cliente d={d} clientes={clientes} clienteId={clienteId}
         elegir={elegirCliente} poner={ponerCliente} />
 
-      {tipo === 'hoja'
-        ? <Hoja d={d} setD={setD} poner={poner} colaboradores={colaboradores} />
-        : <Cobro d={d} setD={setD} poner={poner} />}
+      {tipo === 'presupuesto' ? <Presupuesto d={d} setD={setD} poner={poner} />
+        : tipo === 'hoja' ? <Hoja d={d} setD={setD} poner={poner} colaboradores={colaboradores} />
+          : <Cobro d={d} setD={setD} poner={poner} />}
 
       <label className="campo campo--ancho">
-        <span>Observaciones</span>
+        <span>{tipo === 'presupuesto' ? 'Condiciones y observaciones' : 'Observaciones'}</span>
         <textarea value={d.observaciones} onChange={(e) => poner('observaciones', e.target.value)} />
       </label>
 
@@ -196,6 +232,83 @@ function Cliente({ d, clientes, clienteId, elegir, poner }) {
         <input type="text" inputMode="numeric" maxLength={5} value={c.codigoPostal}
           onChange={(e) => poner('codigoPostal', e.target.value)} />
       </label>
+    </fieldset>
+  );
+}
+
+// ── Presupuesto ─────────────────────────────────────────────────────────────
+
+function Presupuesto({ d, setD, poner }) {
+  const totales = calcular('presupuesto', d);
+
+  const ponerPartida = (i, campo, valor) => setD((x) => ({
+    ...x, partidas: x.partidas.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)),
+  }));
+  const quitarPartida = (i) => setD((x) => ({ ...x, partidas: x.partidas.filter((_, j) => j !== i) }));
+  const añadirPartida = () => setD((x) => ({ ...x, partidas: [...x.partidas, nuevaPartida()] }));
+
+  return (
+    <fieldset className="grupo campo--ancho">
+      <legend>Detalle</legend>
+      <div className="tabla-envoltorio campo--ancho">
+        <table className="tabla tabla--edicion">
+          <thead>
+            <tr>
+              <th scope="col">Descripción</th>
+              <th scope="col" className="num">Cantidad</th>
+              <th scope="col" className="num">Precio (€)</th>
+              <th scope="col" className="num">Importe</th>
+              <th scope="col"><span className="visualmente-oculto">Quitar</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.partidas.map((p, i) => (
+              <tr key={i}>
+                <td><input type="text" aria-label="Descripción" value={p.descripcion}
+                  placeholder="Horas de limpieza, cristales…"
+                  onChange={(e) => ponerPartida(i, 'descripcion', e.target.value)} /></td>
+                <td className="tabla--edicion__corta">
+                  <input type="text" inputMode="decimal" aria-label="Cantidad" value={p.cantidad}
+                    onChange={(e) => ponerPartida(i, 'cantidad', e.target.value)} /></td>
+                <td className="tabla--edicion__corta">
+                  <input type="text" inputMode="decimal" aria-label="Precio" value={p.precio}
+                    onChange={(e) => ponerPartida(i, 'precio', e.target.value)} /></td>
+                <td className="dinero">{euros(totales.partidas[i].importe)}</td>
+                <td>
+                  <button type="button" className="boton boton--plano" onClick={() => quitarPartida(i)}
+                    disabled={d.partidas.length === 1}>
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grupo__pie">
+        <button type="button" className="boton" onClick={añadirPartida}>Añadir línea</button>
+        <span className="campo__ayuda">
+          Por horas: las horas en cantidad y el precio de la hora. Precio cerrado: cantidad 1.
+        </span>
+      </div>
+
+      <div className="campo">
+        <span><label htmlFor="documento-iva">IVA (%)</label></span>
+        <input id="documento-iva" type="text" inputMode="decimal" value={d.iva}
+          onChange={(e) => poner('iva', e.target.value)} />
+        <span className="campo__ayuda">0 si va sin IVA.</span>
+      </div>
+      <label className="campo campo--casilla">
+        <input type="checkbox" checked={d.productosIncluidos}
+          onChange={(e) => poner('productosIncluidos', e.target.checked)} />
+        <span>Productos de limpieza incluidos</span>
+      </label>
+
+      <dl className="totales campo--ancho">
+        <div><dt>Base imponible</dt><dd className="dinero">{euros(totales.subtotal)}</dd></div>
+        <div><dt>IVA {cifra(totales.ivaPorcentaje)} %</dt><dd className="dinero">{euros(totales.iva)}</dd></div>
+        <div className="totales__final"><dt>Total</dt><dd className="dinero">{euros(totales.total)}</dd></div>
+      </dl>
     </fieldset>
   );
 }

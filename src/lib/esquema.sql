@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS cierres (
   editado_en       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ── Documentos: hojas de servicio y cuentas de cobro ───────────────────────
+-- ── Documentos: presupuestos, hojas de servicio y cuentas de cobro ─────────
 -- Papeles que él rellena y entrega. NO son contabilidad: guardar uno no crea
 -- ningún servicio ni suma nada en ningún sitio. Lo decidió él, y así un mismo
 -- trabajo no puede contarse dos veces, una por el servicio y otra por el papel.
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS cierres (
 -- navegador.
 CREATE TABLE IF NOT EXISTS documentos (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  tipo           TEXT NOT NULL,             -- 'hoja' | 'cobro'
+  tipo           TEXT NOT NULL,             -- 'presupuesto' | 'hoja' | 'cobro'
   numero         INTEGER NOT NULL,
   fecha          TEXT NOT NULL DEFAULT '',
   cliente_id     INTEGER REFERENCES clientes(id) ON DELETE SET NULL,

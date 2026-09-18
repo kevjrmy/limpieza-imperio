@@ -1,8 +1,10 @@
 /**
- * Hojas de servicio y cuentas de cobro: qué llevan dentro y cómo se suman.
+ * Presupuestos, hojas de servicio y cuentas de cobro: qué llevan dentro y cómo
+ * se suman.
  *
- * Son los dos papeles que él tenía en su Excel como hojas sueltas —HOJA DE
- * SERVICIO MODELO y CUENTA DE COBRO— y que rellenaba machacando la anterior.
+ * Son los papeles que él tenía en su Excel como hojas sueltas —COTIZACION DE
+ * SERVICIO, HOJA DE SERVICIO MODELO y CUENTA DE COBRO— y que rellenaba
+ * machacando el anterior.
  * Aquí cada uno se guarda aparte con su número, y «Nueva a partir de esta» abre
  * una copia sin tocar el original: eso es exactamente lo que pidió.
  *
@@ -16,12 +18,25 @@
 
 import { fechaDeHoy } from '../componentes/formato.js';
 
+// `femenino` decide la concordancia de los textos que los nombran («nueva
+// hoja», «nuevo presupuesto»): ver `genero()`.
 export const TIPOS = {
+  presupuesto: {
+    nombre: 'Presupuesto',
+    plural: 'Presupuestos',
+    ruta: '/presupuestos',
+    articulo: 'el presupuesto',
+    femenino: false,
+    // Su hoja COTIZACION DE SERVICIO sólo tenía el #001. Se puede cambiar al
+    // guardar el primero.
+    primerNumero: 1,
+  },
   hoja: {
     nombre: 'Hoja de servicio',
     plural: 'Hojas de servicio',
     ruta: '/hojas-de-servicio',
     articulo: 'la hoja',
+    femenino: true,
     primerNumero: 1,
   },
   cobro: {
@@ -29,6 +44,7 @@ export const TIPOS = {
     plural: 'Cuentas de cobro',
     ruta: '/cuentas-de-cobro',
     articulo: 'la cuenta de cobro',
+    femenino: true,
     // Su Excel iba por la #023 cuando se leyó. Es sólo la primera propuesta si
     // todavía no hay ninguna guardada aquí: el número se puede cambiar al
     // guardar la primera, y a partir de ahí sigue desde la más alta.
@@ -37,6 +53,27 @@ export const TIPOS = {
 };
 
 export const esTipo = (t) => Object.hasOwn(TIPOS, t);
+
+/** La palabra que concuerda con el tipo: `genero(t, 'nueva', 'nuevo')`. */
+export const genero = (t, femenino, masculino) => (t.femenino ? femenino : masculino);
+
+// Lo que se puede decir de un presupuesto después de mandarlo. No se imprime:
+// es para que él vea en la lista cuáles salieron adelante.
+export const ESTADOS_PRESUPUESTO = {
+  pendiente: 'Pendiente',
+  aceptado: 'Aceptado',
+  rechazado: 'Rechazado',
+};
+
+// Sugerencias para el tipo de servicio y la frecuencia. Salen de su web
+// (limpiezaselimperio, `src/datos/negocio.ts`); son sólo eso, sugerencias: el
+// campo es libre.
+export const SERVICIOS_SUGERIDOS = ['Limpieza general', 'Limpieza regular',
+  'Limpieza profunda', 'Post mudanza', 'Alquiler vacacional', 'Limpieza de cristales',
+  'Limpieza de comunidades', 'Garajes', 'Limpieza de oficinas', 'Limpieza comercial',
+  'Escaparates', 'Post evento', 'Limpieza de obra', 'Fin de obra'];
+export const FRECUENCIAS_SUGERIDAS = ['Una sola vez', 'Semanal', 'Cada quince días',
+  'Mensual'];
 
 // Lo que su hoja modelo traía escrito, con la ortografía arreglada. Es sólo el
 // punto de partida de una hoja en blanco: se quita y se añade lo que haga falta.
@@ -109,7 +146,28 @@ const tareaVacia = (descripcion = '') => ({
 
 const lineaVacia = () => ({ descripcion: '', cantidad: '1', importe: '', fecha: '' });
 
+// En el presupuesto se escribe el precio y la cantidad, y el importe sale de
+// multiplicar: es al revés que en la cuenta de cobro, porque aquí él parte de
+// su tarifa por hora («normalmente se cobra por horas», dice su web) y el
+// total es lo que quiere saber. Un precio cerrado es cantidad 1.
+const partidaVacia = () => ({ descripcion: '', cantidad: '1', precio: '' });
+
 export function documentoVacio(tipo) {
+  if (tipo === 'presupuesto') {
+    return {
+      fecha: fechaDeHoy(),
+      validez: '30',
+      servicio: '',
+      frecuencia: '',
+      cliente: clienteVacio(),
+      partidas: [partidaVacia()],
+      iva: '21',
+      // Su web: «los materiales y los productos van incluidos en el servicio».
+      productosIncluidos: true,
+      observaciones: '',
+      estado: 'pendiente',
+    };
+  }
   if (tipo === 'hoja') {
     return {
       fecha: fechaDeHoy(),
@@ -140,6 +198,7 @@ export function documentoVacio(tipo) {
 
 export const nuevaTarea = () => tareaVacia();
 export const nuevaLinea = () => lineaVacia();
+export const nuevaPartida = () => partidaVacia();
 
 /**
  * El contenido guardado, listo para meterlo en el formulario: los números
@@ -149,6 +208,16 @@ export function paraFormulario(tipo, c) {
   const base = documentoVacio(tipo);
   const d = { ...base, ...c, cliente: { ...base.cliente, ...(c?.cliente ?? {}) } };
 
+  if (tipo === 'presupuesto') {
+    return {
+      ...d,
+      validez: aCampo(d.validez),
+      iva: String(d.iva ?? 21).replace('.', ','),
+      partidas: (d.partidas ?? []).map((p) => ({
+        ...partidaVacia(), ...p, cantidad: aCampo(p.cantidad), precio: aCampo(p.precio),
+      })),
+    };
+  }
   if (tipo === 'hoja') {
     return {
       ...d,
@@ -178,7 +247,10 @@ export function paraFormulario(tipo, c) {
 export function copiaParaNueva(tipo, contenido) {
   const d = paraFormulario(tipo, contenido);
   d.fecha = fechaDeHoy();
-  if (tipo === 'hoja') {
+  if (tipo === 'presupuesto') {
+    // Si aquél se aceptó, éste todavía no lo ha visto nadie.
+    d.estado = 'pendiente';
+  } else if (tipo === 'hoja') {
     // Lo hecho es de aquel día, no de éste. Y si aquella se facturó, ésta
     // todavía no: copiarlo imprimiría «Facturado: Sí» en un servicio sin cobrar.
     d.tareas = d.tareas.map((t) => ({ ...t, realizada: false, observaciones: '' }));
@@ -195,6 +267,17 @@ export function copiaParaNueva(tipo, contenido) {
 
 /** Lo que se suma en cada documento. Acepta lo del formulario o lo guardado. */
 export function calcular(tipo, d) {
+  if (tipo === 'presupuesto') {
+    const partidas = (d.partidas ?? []).map((p) => {
+      const cantidad = leerNumero(p.cantidad);
+      const precio = leerNumero(p.precio);
+      return { cantidad, precio, importe: centimos(cantidad * precio) };
+    });
+    const subtotal = centimos(partidas.reduce((a, p) => a + p.importe, 0));
+    const ivaPorcentaje = leerNumero(d.iva);
+    const iva = centimos(subtotal * ivaPorcentaje / 100);
+    return { partidas, subtotal, ivaPorcentaje, iva, total: centimos(subtotal + iva) };
+  }
   if (tipo === 'hoja') {
     const subtotal = IMPORTES_HOJA.reduce((a, i) => a + leerNumero(d.importes?.[i.campo]), 0);
     const ivaPorcentaje = leerNumero(d.iva);
@@ -251,6 +334,35 @@ export function normalizar(tipo, d) {
 
   const cliente = limpiarCliente(d.cliente);
   if (!cliente.nombre) return { error: 'Falta el nombre del cliente.' };
+
+  if (tipo === 'presupuesto') {
+    const partidas = lista(d.partidas)
+      .map((p) => ({
+        descripcion: txt(p?.descripcion, 300),
+        cantidad: leerNumero(p?.cantidad),
+        precio: leerNumero(p?.precio),
+      }))
+      // Como en la cuenta de cobro: la cantidad nace con un 1 y no cuenta.
+      .filter((p) => p.descripcion || p.precio);
+    if (!partidas.length) return { error: 'El presupuesto necesita al menos una línea.' };
+
+    // Sin validez es «sin plazo», y se imprime así: no se inventa un plazo.
+    const validez = Math.max(0, Math.min(365, Math.round(leerNumero(d.validez))));
+    return {
+      contenido: {
+        fecha: d.fecha,
+        validez,
+        servicio: txt(d.servicio, 200),
+        frecuencia: txt(d.frecuencia, 120),
+        cliente,
+        partidas,
+        iva: leerNumero(d.iva),
+        productosIncluidos: Boolean(d.productosIncluidos),
+        observaciones: parrafo(d.observaciones),
+        estado: Object.hasOwn(ESTADOS_PRESUPUESTO, d.estado) ? d.estado : 'pendiente',
+      },
+    };
+  }
 
   if (tipo === 'hoja') {
     return {
@@ -309,6 +421,19 @@ export function normalizar(tipo, d) {
       observaciones: parrafo(d.observaciones),
     },
   };
+}
+
+/**
+ * Hasta qué día vale un presupuesto: la fecha más los días de validez, en
+ * `AAAA-MM-DD`. Vacío si no tiene plazo. Se cuenta en UTC para que el cambio de
+ * hora no mueva el día.
+ */
+export function validoHasta(d) {
+  const dias = Math.round(leerNumero(d?.validez));
+  if (!dias || !fechaValida(d?.fecha)) return '';
+  const f = new Date(`${d.fecha}T00:00:00Z`);
+  f.setUTCDate(f.getUTCDate() + dias);
+  return f.toISOString().slice(0, 10);
 }
 
 /** El contenido guardado en la base, a objeto. Un JSON roto no tira la página. */

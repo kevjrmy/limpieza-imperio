@@ -14,6 +14,9 @@ import { intentar } from './intentar.js';
  * cambia la contraseña, no hay perfil y no hay otras cuentas—. Que el menú sea
  * corto no es una carencia: es que el sistema entero cabe en dos verbos.
  *
+ * En el círculo va su logo, no la inicial del usuario: lo pidió él, y es el
+ * mismo `public/logo.jpg` de los papeles impresos.
+ *
  * Sin esto sería imposible salir: el único camino para cerrar sesión es este
  * menú, así que tiene que estar en todas las páginas y no esconderse en
  * ninguna.
@@ -54,8 +57,6 @@ export default function BotonUsuario({ usuario }) {
     });
   }
 
-  const inicial = (usuario || '?').trim().charAt(0).toUpperCase();
-
   return (
     <div className="usuario" ref={caja}>
       <button
@@ -66,7 +67,7 @@ export default function BotonUsuario({ usuario }) {
         aria-expanded={abierto}
         aria-haspopup="menu"
       >
-        <span aria-hidden="true">{inicial}</span>
+        <img src="/logo.jpg" alt="" className="usuario__logo" />
         <span className="visualmente-oculto">Cuenta de {usuario}</span>
       </button>
 
@@ -74,7 +75,7 @@ export default function BotonUsuario({ usuario }) {
         <div className="usuario__menu" role="menu">
           <p className="usuario__quien">
             <span className="usuario__avatar usuario__avatar--fijo" aria-hidden="true">
-              {inicial}
+              <img src="/logo.jpg" alt="" className="usuario__logo" />
             </span>
             <span className="usuario__correo">{usuario}</span>
           </p>

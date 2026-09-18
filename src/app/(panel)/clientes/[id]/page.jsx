@@ -42,6 +42,7 @@ export default async function Cliente({ params }) {
           <dt>Teléfono</dt>
           <dd>{c.telefono ? <a href={`tel:${c.telefono}`}>{c.telefono}</a> : '—'}</dd>
         </div>
+        <div><dt>DNI / NIF</dt><dd>{c.nif || '—'}</dd></div>
         <div>
           <dt>Colaborador habitual</dt>
           <dd>

@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS clientes (
   provincia     TEXT NOT NULL DEFAULT '',
 
   telefono    TEXT NOT NULL DEFAULT '',
+
+  -- DNI, NIE o CIF. Lo piden la hoja de servicio y la cuenta de cobro, y vive
+  -- aquí para no tener que escribirlo en cada documento. Texto libre y sin
+  -- validar: lo mismo es un DNI que el CIF de una comunidad de vecinos.
+  nif         TEXT NOT NULL DEFAULT '',
+
   notas       TEXT NOT NULL DEFAULT '',
   activo      INTEGER NOT NULL DEFAULT 1,
 
@@ -183,6 +189,36 @@ CREATE TABLE IF NOT EXISTS cierres (
   notas            TEXT NOT NULL DEFAULT '',
   editado_en       TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ── Documentos: hojas de servicio y cuentas de cobro ───────────────────────
+-- Papeles que él rellena y entrega. NO son contabilidad: guardar uno no crea
+-- ningún servicio ni suma nada en ningún sitio. Lo decidió él, y así un mismo
+-- trabajo no puede contarse dos veces, una por el servicio y otra por el papel.
+--
+-- Cada documento guarda su propia copia de los datos del cliente en
+-- `contenido` (JSON). Es a propósito: un papel entregado dice lo que decía el
+-- día que se entregó, aunque luego cambie la ficha del cliente. `cliente_id` es
+-- sólo el enlace para llegar a su ficha.
+--
+-- `numero` es el que se imprime y va por tipo: la hoja 12 y la cuenta de cobro
+-- 12 conviven. Lo propone la aplicación y él lo puede cambiar, pero no repetir.
+-- Las columnas sueltas —fecha, cliente, total— son las que hacen falta para
+-- listar. El total lo calcula el servidor al guardar, nunca lo manda el
+-- navegador.
+CREATE TABLE IF NOT EXISTS documentos (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo           TEXT NOT NULL,             -- 'hoja' | 'cobro'
+  numero         INTEGER NOT NULL,
+  fecha          TEXT NOT NULL DEFAULT '',
+  cliente_id     INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
+  cliente_nombre TEXT NOT NULL DEFAULT '',
+  total          REAL NOT NULL DEFAULT 0,
+  contenido      TEXT NOT NULL DEFAULT '{}',
+  creado_en      TEXT NOT NULL DEFAULT (datetime('now')),
+  editado_en     TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (tipo, numero)
+);
+CREATE INDEX IF NOT EXISTS idx_documentos_cliente ON documentos(cliente_id);
 
 -- ── Avisos de la importación ────────────────────────────────────────────────
 -- Lo que no cuadraba en el Excel. No se corrigió nada en silencio: se trae para

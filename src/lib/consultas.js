@@ -21,6 +21,7 @@ import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
 import { clave } from './texto.js';
 import { idBuscado } from './formato.js';
+import { TIPOS, leerContenido } from './documentos.js';
 
 /**
  * Buscar sin que los acentos estorben.
@@ -95,6 +96,10 @@ export const mesesConBorradores = protegida(_mesesConBorradores);
 export const mesAnteriorCon = protegida(_mesAnteriorCon);
 export const serviciosParaRecurrencia = protegida(_serviciosParaRecurrencia);
 export const analizarRecurrencia = protegida(_analizarRecurrencia);
+export const listaClientes = protegida(_listaClientes);
+export const documentos = protegida(_documentos);
+export const documento = protegida(_documento);
+export const siguienteNumero = protegida(_siguienteNumero);
 
 // ── Resumen ─────────────────────────────────────────────────────────────────
 
@@ -195,6 +200,16 @@ async function _cliente(id) {
 async function _listaColaboradores() {
   return consultar(
     'SELECT id, nombre, telefono, activo FROM colaboradores ORDER BY nombre');
+}
+
+/**
+ * Los clientes para el desplegable de los documentos, con lo que se copia al
+ * papel al elegir uno. `_clientes` no vale: arrastra los agregados de dinero.
+ */
+async function _listaClientes() {
+  return consultar(`
+    SELECT id, nombre, nif, direccion, codigo_postal, provincia, telefono, activo
+      FROM clientes ORDER BY nombre`);
 }
 
 async function _serviciosDeCliente(id) {
@@ -476,4 +491,38 @@ async function _pendientes() {
            (SELECT COUNT(*) FROM fusiones WHERE estado = 'pendiente') AS fusiones,
            (SELECT COUNT(*) FROM v_servicios WHERE revisar = 1)   AS servicios,
            (SELECT COUNT(*) FROM servicios WHERE borrador = 1)     AS borradores`);
+}
+
+// ── Hojas de servicio y cuentas de cobro ────────────────────────────────────
+
+/** Los de un tipo, del número más alto al más bajo: lo último hecho, arriba. */
+async function _documentos(tipo, { busqueda = '' } = {}) {
+  const filas = await consultar(`
+    SELECT id, numero, fecha, cliente_id, cliente_nombre, total, editado_en
+      FROM documentos WHERE tipo = ?
+     ORDER BY numero DESC`, [tipo]);
+  if (!busqueda) return filas;
+
+  // Por número de documento si escribe sólo dígitos, por cliente si no: igual
+  // que en clientes y colaboradores.
+  const n = idBuscado(busqueda);
+  return filas.filter((f) => (n === null
+    ? coincide(f.cliente_nombre, busqueda) : Number(f.numero) === n));
+}
+
+async function _documento(id) {
+  const d = await consultarUna('SELECT * FROM documentos WHERE id = ?', [id]);
+  if (!d) return null;
+  d.contenido = leerContenido(d.contenido);
+  return d;
+}
+
+/**
+ * El número que se propone para uno nuevo: el siguiente al más alto. No es el
+ * siguiente al último creado, porque él puede haber metido uno antiguo a mano.
+ */
+async function _siguienteNumero(tipo) {
+  const f = await consultarUna(
+    'SELECT MAX(numero) AS n FROM documentos WHERE tipo = ?', [tipo]);
+  return f?.n ? Number(f.n) + 1 : TIPOS[tipo].primerNumero;
 }

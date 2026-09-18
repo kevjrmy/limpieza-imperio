@@ -64,6 +64,7 @@ const TABLAS = {
       { campo: 'codigo_postal', titulo: 'Código postal' },
       { campo: 'provincia', titulo: 'Provincia' },
       { campo: 'telefono', titulo: 'Teléfono' },
+      { campo: 'nif', titulo: 'DNI / NIF' },
       { campo: 'colaborador_nombre', titulo: 'Colaborador habitual' },
       { campo: 'colaborador_telefono', titulo: 'Teléfono del colaborador' },
       { campo: 'servicios', titulo: 'Servicios' },
@@ -75,7 +76,7 @@ const TABLAS = {
     ],
     sql: `
       SELECT c.id, c.nombre, c.direccion, c.codigo_postal, c.provincia,
-             c.telefono, c.notas,
+             c.telefono, c.nif, c.notas,
              co.nombre   AS colaborador_nombre,
              co.telefono AS colaborador_telefono,
              COUNT(s.id) AS servicios,

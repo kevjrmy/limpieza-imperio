@@ -6,7 +6,8 @@ cada mes.
 
 **Un solo negocio y un solo usuario.** El dueño entra con su cuenta, lleva sus
 servicios, clientes, colaboradores y gastos, adelanta el mes siguiente a partir
-de lo que se repite, y se lleva el mes entero en un CSV.
+de lo que se repite, y se lleva el mes entero en un CSV. Además rellena e
+imprime sus hojas de servicio y sus cuentas de cobro.
 
 **En producción:** https://limpiezas-imperio.vercel.app
 
@@ -375,20 +376,57 @@ persona**, sin decir nada. La regla que queda escrita en la consulta: si un
 campo se edita en el formulario, tiene que venir en la consulta que alimenta la
 fila. Un `undefined` en una casilla es indistinguible de un «no».
 
+## Hojas de servicio y cuentas de cobro
+
+Lo pidió así: «un espacio que se llame hoja modelo de servicios, pero que al
+guardar la información pueda generar otro sin tener que modificar el anterior,
+que sea editable, y también una hoja de cuenta de cobro». Las dos estaban en su
+Excel como pestañas sueltas —`HOJA DE SERVICIO MODELO` y `CUENTA DE COBRO 2025`—
+que rellenaba encima de la anterior, así que cada papel nuevo borraba el de
+antes. Aquí cada uno se guarda aparte con su número, y **«Nueva a partir de
+esta»** abre una copia para retocar: al guardarla nace otro documento y el de
+origen no cambia. Los dos se pueden editar después, y se imprimen —o se guardan
+en PDF desde el navegador— en un A4 con su logo y sus datos.
+
+La maquetación sigue la de sus hojas: la hoja de servicio lleva el cliente, el
+tipo de limpieza, las tareas con cantidad, observaciones, si se hizo y quién,
+el personal asignado, las horas y los importes con IVA; la cuenta de cobro, el
+cliente, las líneas y el total. En la cuenta de cobro él escribe el total de
+cada línea y el precio unitario sale de dividir, como hacía su Excel.
+
+Tres decisiones:
+
+- **No son contabilidad.** Guardar uno no crea servicios ni suma en ningún
+  resumen. Lo decidió él, y así un mismo trabajo no puede contarse dos veces,
+  una por el servicio y otra por el papel.
+- **Cada documento guarda su propia copia de los datos del cliente.** Un papel
+  entregado dice lo que decía el día que se entregó, aunque luego cambie la
+  ficha. Por eso el contenido va en una columna JSON y el cliente sólo como
+  enlace a su ficha.
+- **El DNI vive en la ficha del cliente**, no en cada papel: al elegir el
+  cliente se copia solo. Para escribirlo una vez y no en cada documento.
+
+La cuenta de cobro **no es una factura**, y no se ha montado para que lo sea:
+en España eso pide numeración y datos fiscales concretos y un programa que
+cumpla VERI\*FACTU. Sus facturas las lleva la gestoría. El número de cuenta de
+cobro empieza proponiendo el 24 porque su Excel iba por el 23; él lo puede
+cambiar, pero no repetir.
+
 ## Esquema
 
 `clientes`, `colaboradores`, `servicios` y la tabla de unión
 `servicio_colaborador` — un servicio puede llevar varias personas, que es
 exactamente lo que la celda apretujada del Excel debería haber sido. Aparte:
-`gastos`, `costes_fijos`, `cierres`, `avisos` y `fusiones`.
+`gastos`, `costes_fijos`, `cierres`, `avisos` y `fusiones`. Y `documentos`, con
+las hojas de servicio y las cuentas de cobro, que no suman en nada.
 
 No hay tabla de usuarios ni de sesiones, y es deliberado: la autenticación no
 escribe nada en la base. Ver *Autenticación*.
 
 `clientes.colaborador_id` apunta a quién suele ir. `colaboradores` lleva
 `direccion`, `barrio` y `provincia`; `clientes`, `direccion`, `codigo_postal` y
-`provincia`. Todas esas columnas se añaden solas sobre una base que ya tiene
-datos (`COLUMNAS_NUEVAS` en `scripts/esquema.mjs`), porque
+`provincia`, además de `nif`. Todas esas columnas se añaden solas sobre una
+base que ya tiene datos (`COLUMNAS_NUEVAS` en `scripts/esquema.mjs`), porque
 `CREATE TABLE IF NOT EXISTS` no toca una tabla que ya existe.
 
 Cada fila sembrada conserva su `origen` (`CLIENTES AGOSTO 2026!86`), así que

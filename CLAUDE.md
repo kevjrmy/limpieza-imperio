@@ -95,6 +95,7 @@ la raíz**: si aparece una, Next la toma como directorio de rutas y deja de ver
 ```
 src/app/          rutas: / · /preparar · /servicios · /clientes
                   /colaboradores · /gastos · /meses · /revisar · /exportar
+                  /hojas-de-servicio · /cuentas-de-cobro (y /[id] de cada una)
                   /entrar
                   api/exportar/[tabla]/route.js
                   api/exportar/mes/[periodo]/route.js
@@ -105,11 +106,16 @@ src/componentes/  PanelServicios · FormularioServicio · PanelGastos
                   AvisoNuevo (confirma un alta y lleva a su fila)
                   formato.js (tono del dinero, fecha de hoy) · rutas.js
                   intentar.js (que un fallo al guardar no se quede mudo)
+                  Documento (el papel impreso) · FormularioDocumento
+                  PanelDocumento · PaginasDocumento (las dos pantallas)
 src/lib/          db.js consultas.js acciones.js csv.js esquema.sql
                   sesion.js (exigirSesion) · acceso.js (entrar y salir)
                   firma.js (la cookie) · clave.js (scrypt)
                   recurrencia.js agrupar.js metricas.js texto.js formato.js
                   parser.js
+                  documentos.js (qué lleva cada papel y sus totales, puro)
+                  negocio.js (los datos de la cabecera impresa)
+public/           logo.jpg (el de su web, a 480 px)
 src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
 scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
                   verificar.mjs · libro-de-prueba.mjs
@@ -496,6 +502,10 @@ caminos por los que pasaba están cerrados en `acciones.js`:
 - `borrarColaborador` **se niega** si es el habitual de algún cliente, y dice de
   cuántos. Es la misma familia que la comprobación de servicios que ya había.
 
+`documentos.cliente_id` es también `ON DELETE SET NULL`, y está atendido igual:
+`aplicarFusion` mueve los documentos del cliente absorbido al que se queda, y
+`borrarCliente` se niega si el cliente tiene alguno.
+
 Las claves foráneas **sí se aplican en tiempo de ejecución** —libSQL trae
 `PRAGMA foreign_keys` en 1 por su cuenta, comprobado—, así que el `SET NULL` y
 el `CASCADE` de `servicio_colaborador` ocurren de verdad. No es una regla en el
@@ -537,6 +547,39 @@ los de Madrid por 0, y un `<input type="number">` se come ese cero.
 una provincia no compensaba una lista cerrada; si algún día conviven «Valencia»,
 «VALENCIA» y «València» en las exportaciones, ahí está el motivo y el arreglo es
 una lista.
+
+## Hojas de servicio y cuentas de cobro
+
+Los dos papeles que él tenía en el Excel como pestañas que rellenaba machacando
+la anterior (`HOJA DE SERVICIO MODELO`, `CUENTA DE COBRO 2025`). Pidió poder
+«generar otro sin tener que modificar el anterior»: cada uno se guarda aparte
+con su número, se edita en el sitio, y **«Nueva a partir de esta»** abre una
+copia que al guardarse es otra fila. Se imprimen con `window.print()` sobre una
+maquetación A4; en impresión sólo sale el `.documento`.
+
+- **No son contabilidad, y es una decisión suya.** Guardar uno no escribe en
+  `servicios` ni en nada que sume. No lo enganches a los resúmenes ni a las
+  exportaciones: el mismo trabajo contaría dos veces.
+- **Una sola tabla, `documentos`, con `tipo` `'hoja' | 'cobro'`** y el papel
+  entero en `contenido` (JSON). El JSON guarda **su propia copia** de los datos
+  del cliente: un papel entregado no cambia porque cambie la ficha.
+  `cliente_id` es sólo el enlace. Fecha, nombre del cliente y total van además
+  en columnas para poder listar; el total lo calcula el servidor con
+  `calcular()` al guardar, nunca lo manda el navegador.
+- **`documentos.js` es puro** y lo usan el formulario (totales en vivo) y la
+  acción (normaliza y recalcula). Si cambias qué lleva un papel, se cambia ahí:
+  `documentoVacio`, `normalizar` y `calcular` tienen que ir a la par.
+- **El número se propone —el más alto más uno— y él lo puede cambiar, pero no
+  repetir** (`UNIQUE (tipo, numero)`, y la acción lo dice antes de chocar). Las
+  cuentas de cobro empiezan proponiendo el 24 porque su Excel iba por el 23.
+- **El DNI/NIF vive en la ficha del cliente** (`clientes.nif`), no en cada
+  papel: al elegir el cliente se copia. Lo pidió así para no reescribirlo.
+- **La cuenta de cobro no es una factura** y no la conviertas en una sin
+  hablarlo: en España eso pide numeración y datos fiscales concretos y un
+  programa que cumpla VERI*FACTU. Sus facturas las hace la gestoría.
+- Los datos de la cabecera (`negocio.js`) salen de su web
+  (`limpiezaselimperio/src/datos/negocio.ts`): el `.es`, no el `.net` que
+  traían sus hojas de Excel.
 
 ## Invariantes del dominio
 

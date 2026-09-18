@@ -126,6 +126,17 @@ export default function FichaPersona({ tipo, persona, alTerminar, colaboradores 
         <input type="tel" name="telefono" defaultValue={persona?.telefono ?? ''} />
       </label>
 
+      {/* Lo piden la hoja de servicio y la cuenta de cobro. Vive en la ficha
+          para no tener que escribirlo en cada papel: al elegir el cliente en
+          uno, se copia solo. */}
+      {esCliente && (
+        <label className="campo">
+          <span>DNI / NIF</span>
+          <input type="text" name="nif" autoCapitalize="characters"
+            defaultValue={persona?.nif ?? ''} />
+        </label>
+      )}
+
       {esCliente && (
         <div className="campo">
           <span><label htmlFor="colaborador_id">Colaborador habitual</label></span>

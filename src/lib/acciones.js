@@ -20,7 +20,8 @@ import { repartir } from './metricas.js';
 import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
 import { serviciosParaRecurrencia } from './consultas.js';
-import { nombrePeriodo } from './formato.js';
+import { nombrePeriodo, codigo } from './formato.js';
+import { TIPOS, esTipo, normalizar, calcular } from './documentos.js';
 
 // ── Utilidades de formulario ────────────────────────────────────────────────
 
@@ -303,13 +304,13 @@ export const guardarCliente = accion(async (id, datos) => {
   const colaboradorId = Number(datos.get('colaborador_id')) || null;
 
   const campos = [nombre, txt(datos.get('direccion')), txt(datos.get('codigo_postal')),
-    txt(datos.get('provincia')), txt(datos.get('telefono')),
+    txt(datos.get('provincia')), txt(datos.get('telefono')), txt(datos.get('nif')),
     txt(datos.get('notas')), datos.get('activo') ? 1 : 0, colaboradorId];
 
   if (id) {
     await ejecutar(
       `UPDATE clientes SET nombre=?, direccion=?, codigo_postal=?, provincia=?,
-              telefono=?, notas=?, activo=?,
+              telefono=?, nif=?, notas=?, activo=?,
               colaborador_id=?, editado_en=datetime('now') WHERE id=?`,
       [...campos, Number(id)]);
     refrescar();
@@ -324,8 +325,8 @@ export const guardarCliente = accion(async (id, datos) => {
 
   const { id: nuevo } = await ejecutar(
     `INSERT INTO clientes (nombre, direccion, codigo_postal, provincia, telefono,
-                           notas, activo, colaborador_id)
-     VALUES (?,?,?,?,?,?,?,?)`, campos);
+                           nif, notas, activo, colaborador_id)
+     VALUES (?,?,?,?,?,?,?,?,?)`, campos);
   refrescar();
   return { ok: true, id: Number(nuevo) };
 });
@@ -336,6 +337,15 @@ export const borrarCliente = accion(async (id) => {
   exigir(n === 0,
     `Este cliente tiene ${n} servicio(s). Borrarlo se llevaría su contabilidad por delante. `
     + 'Márcalo como inactivo si ya no trabajas con él.');
+
+  // Los documentos apuntan aquí con `ON DELETE SET NULL`. El papel no se
+  // perdería —lleva su propia copia de los datos—, pero sí el enlace a la ficha,
+  // y sin decir nada. Misma familia que la comprobación de servicios.
+  const [{ d }] = await consultar(
+    'SELECT COUNT(*) AS d FROM documentos WHERE cliente_id = ?', [Number(id)]);
+  exigir(d === 0,
+    `Este cliente tiene ${d} hoja(s) de servicio o cuenta(s) de cobro. `
+    + 'Márcalo como inactivo en vez de borrarlo.');
 
   await ejecutar('DELETE FROM clientes WHERE id = ?', [Number(id)]);
   refrescar();
@@ -507,6 +517,11 @@ export const aplicarFusion = accion(async (id) => {
     if (tabla === 'clientes') {
       await ejecutar('UPDATE servicios SET cliente_id = ? WHERE cliente_id = ?',
         [destino.id, origen.id]);
+      // Los documentos son `ON DELETE SET NULL`: sin esto, el DELETE de abajo
+      // los dejaba sin enlace a la ficha. Lo que dicen no cambia —cada uno lleva
+      // su copia de los datos del cliente—, sólo a qué ficha llevan.
+      await ejecutar('UPDATE documentos SET cliente_id = ? WHERE cliente_id = ?',
+        [destino.id, origen.id]);
     } else {
       // Si las dos personas ya estaban en el mismo servicio, la clave primaria
       // compuesta chocaría. El pago del que se absorbe se SUMA al del que se
@@ -555,5 +570,68 @@ export const aplicarFusion = accion(async (id) => {
 export const rechazarFusion = accion(async (id) => {
   await ejecutar("UPDATE fusiones SET estado = 'rechazada' WHERE id = ?", [Number(id)]);
   refrescar();
+  return { ok: true };
+});
+
+// ── Hojas de servicio y cuentas de cobro ────────────────────────────────────
+
+/**
+ * Guarda un documento. Sin `id` crea uno NUEVO, y eso es también lo que hace
+ * «Nueva a partir de esta»: el formulario llega relleno con la copia, pero aquí
+ * se inserta otra fila y la de origen no se toca.
+ *
+ * El total se calcula aquí a partir del contenido, no se fía del navegador.
+ * Nada de esto escribe en servicios ni en ninguna tabla que sume dinero.
+ */
+export const guardarDocumento = accion(async (tipo, id, crudo) => {
+  exigir(esTipo(tipo), 'Tipo de documento desconocido.');
+  const t = TIPOS[tipo];
+
+  const numero = Number.parseInt(String(crudo?.numero ?? '').replace(/^#/, ''), 10);
+  exigir(Number.isInteger(numero) && numero > 0, 'El número tiene que ser un entero mayor que cero.');
+
+  const { contenido, error } = normalizar(tipo, crudo?.contenido);
+  exigir(!error, error);
+
+  // Dos papeles con el mismo número son justo lo que no puede pasar: se dice
+  // cuál lo tiene en vez de dejar que reviente la restricción UNIQUE.
+  const choca = await consultarUna(
+    'SELECT id FROM documentos WHERE tipo = ? AND numero = ? AND id <> ?',
+    [tipo, numero, Number(id) || 0]);
+  exigir(!choca, `Ya existe ${t.articulo} ${codigo(numero)}. Elige otro número.`);
+
+  // El enlace a la ficha sólo si esa ficha existe: un id que no está haría
+  // fallar la clave foránea con un mensaje que no le diría nada.
+  let clienteId = Number(crudo?.clienteId) || null;
+  if (clienteId && !(await consultarUna('SELECT id FROM clientes WHERE id = ?', [clienteId]))) {
+    clienteId = null;
+  }
+
+  const { total } = calcular(tipo, contenido);
+  const campos = [numero, contenido.fecha, clienteId, contenido.cliente.nombre, total,
+    JSON.stringify(contenido)];
+
+  if (id) {
+    const { filas } = await ejecutar(
+      `UPDATE documentos SET numero=?, fecha=?, cliente_id=?, cliente_nombre=?, total=?,
+              contenido=?, editado_en=datetime('now')
+        WHERE id=? AND tipo=?`, [...campos, Number(id), tipo]);
+    exigir(filas > 0, `Ese documento ya no existe.`);
+    revalidatePath(t.ruta);
+    return { ok: true, id: Number(id) };
+  }
+
+  const { id: nuevo } = await ejecutar(
+    `INSERT INTO documentos (tipo, numero, fecha, cliente_id, cliente_nombre, total, contenido)
+     VALUES (?,?,?,?,?,?,?)`, [tipo, ...campos]);
+  revalidatePath(t.ruta);
+  return { ok: true, id: Number(nuevo) };
+});
+
+export const borrarDocumento = accion(async (id) => {
+  const d = await consultarUna('SELECT tipo FROM documentos WHERE id = ?', [Number(id)]);
+  exigir(d, 'Ese documento ya no existe.');
+  await ejecutar('DELETE FROM documentos WHERE id = ?', [Number(id)]);
+  revalidatePath(TIPOS[d.tipo]?.ruta ?? '/');
   return { ok: true };
 });

@@ -52,6 +52,7 @@ const COLUMNAS_NUEVAS = [
   { tabla: 'colaboradores', columna: 'provincia', definicion: "TEXT NOT NULL DEFAULT ''" },
   { tabla: 'clientes', columna: 'codigo_postal', definicion: "TEXT NOT NULL DEFAULT ''" },
   { tabla: 'clientes', columna: 'provincia', definicion: "TEXT NOT NULL DEFAULT ''" },
+  { tabla: 'clientes', columna: 'nif', definicion: "TEXT NOT NULL DEFAULT ''" },
 ];
 
 // El orden importa: las vistas se definen sobre columnas que quizá aún no

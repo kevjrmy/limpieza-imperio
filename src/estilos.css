@@ -1005,3 +1005,223 @@ code {
 /* Los borradores no son una urgencia como lo que hay que revisar: van en gris,
    no en ámbar. El color sigue reservado al margen y a lo que pide decisión. */
 .pastilla--tenue { background: var(--linea-fuerte); color: var(--papel); }
+
+/* ── Hojas de servicio y cuentas de cobro ───────────────────────────────── */
+/* El papel que él entrega. En pantalla se pinta como una hoja sobre la mesa;
+   al imprimir desaparece todo lo demás y queda sólo esto, a tamaño A4. Sigue
+   siendo tinta sobre papel: el único color es el del logo, que es suyo. */
+
+.documento {
+  max-width: 52rem;
+  margin: 0 0 2rem;
+  padding: 2rem 2.25rem;
+  background: #fff;
+  border: 1px solid var(--linea);
+  font-size: 0.875rem;
+  color: var(--tinta);
+}
+
+.documento p { margin: 0; }
+
+.documento__cabecera {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1.25rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--tinta);
+}
+
+.documento__logo { width: 6rem; height: 6rem; object-fit: contain; }
+.documento__nombre { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.documento__lema { font-style: italic; color: var(--tinta-media); margin-bottom: 0.35rem !important; }
+.documento__contacto { font-size: 0.78rem; color: var(--tinta-media); }
+
+.documento__identidad { text-align: right; }
+/* Más específico que `.contenido h2`, que convierte los h2 en rótulos grises. */
+.contenido .documento__tipo {
+  margin: 0;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tinta);
+}
+.documento__numero { font-family: var(--mono); font-size: 1.125rem; font-weight: 600; }
+
+.documento__bloque { margin-top: 1.25rem; }
+
+.documento__seccion {
+  margin: 0 0 0.45rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--linea-fuerte);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tinta-media);
+}
+
+.documento__columnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0 1.75rem;
+}
+
+.documento__datos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+.documento__datos--horas { grid-template-columns: repeat(3, 1fr); margin-top: 0.85rem; }
+
+.documento__dato--ancho { grid-column: 1 / -1; }
+.documento__dato dt {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-tenue);
+}
+/* La raya de impreso: un dato vacío se ve como un hueco por rellenar a mano. */
+.documento__dato dd { margin: 0; min-height: 1.35rem; border-bottom: 1px dotted var(--linea-fuerte); }
+
+.documento__tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+/* Todo el selector dentro de `:where()`, y no sólo las celdas: con
+   `.documento__tabla :where(...)` esto pesaba lo mismo que `.num` y `.dinero`,
+   venía después en el archivo y les ganaba — los importes salían a la
+   izquierda. El mismo tropiezo que el de `.tabla`, más arriba. */
+:where(.documento__tabla) :where(th, td) {
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--linea);
+}
+:where(.documento__tabla) :where(th, td):first-child { padding-left: 0; }
+:where(.documento__tabla) :where(th, td):last-child { padding-right: 0; }
+.documento__tabla thead th {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-tenue);
+  border-bottom-color: var(--linea-fuerte);
+}
+.documento__tabla tfoot :where(th, td) { border-top: 2px solid var(--tinta); border-bottom: 0; font-weight: 600; }
+.documento__marca-col { text-align: center; width: 4.5rem; }
+
+.documento__importes tbody th { font-weight: 400; }
+.documento__subtotal :where(th, td) { border-top: 1px solid var(--linea-fuerte); font-weight: 600; }
+
+.documento__personal { margin: 0; padding-left: 1.1rem; }
+.documento__vacio { color: var(--tinta-tenue); font-style: italic; }
+.documento__linea { margin-top: 0.75rem !important; }
+.documento__texto { white-space: pre-line; }
+
+.documento__firmas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 0.8125rem;
+}
+.documento__firma-raya { display: block; height: 2.5rem; border-bottom: 1px solid var(--tinta); margin-bottom: 0.3rem; }
+.documento__firma-nombre { color: var(--tinta-media); }
+
+.documento__despedida {
+  margin-top: 1.75rem !important;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--linea);
+  text-align: center;
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--tinta-media);
+}
+
+.barra-documento { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: center; margin-bottom: 1rem; }
+
+/* El formulario del documento: los bloques van en `fieldset` para que el
+   cliente, las tareas y los importes se lean como partes de un mismo papel. */
+.formulario--documento { max-width: 60rem; }
+.contenido .formulario__titulo {
+  margin: 0;
+  font-size: 1.125rem;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+}
+
+.grupo {
+  display: grid;
+  gap: 0.9rem 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  align-items: end;
+  min-width: 0;
+  margin: 0;
+  padding: 0.85rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--linea);
+}
+.grupo legend {
+  padding: 0 0.5rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.grupo__pie { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+
+/* Tablas donde cada celda es un campo. */
+.tabla--edicion :where(th, td) { padding: 0.25rem 0.4rem; vertical-align: middle; }
+.tabla--edicion :where(input[type="text"], input[type="date"], select) {
+  width: 100%;
+  min-width: 8rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--radio);
+  background: var(--papel);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.tabla--edicion :where(input[inputmode="decimal"]) { font-family: var(--mono); text-align: right; }
+.tabla--edicion__corta :where(input) { min-width: 5rem !important; max-width: 7rem; }
+.tabla--edicion__casilla { text-align: center; }
+
+.lista-quitar { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin: 0; padding: 0; list-style: none; }
+.lista-quitar li { display: inline-flex; gap: 0.5rem; align-items: baseline; font-size: 0.875rem; }
+
+.totales { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin: 0; }
+.totales div { display: grid; gap: 0.1rem; }
+.totales dt { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tinta-tenue); }
+.totales dd { margin: 0; text-align: left; }
+.totales__final dd { font-weight: 700; font-size: 0.9375rem; }
+
+@media (max-width: 40rem) {
+  .documento { padding: 1.1rem 1rem; }
+  .documento__cabecera { grid-template-columns: auto 1fr; }
+  .documento__identidad { grid-column: 1 / -1; text-align: left; }
+  .documento__logo { width: 4.5rem; height: 4.5rem; }
+  .documento__firmas { gap: 1.5rem; }
+  .documento .documento__tabla { display: block; overflow-x: auto; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+
+  /* En la página de un documento sólo sale el documento. */
+  body:has(.documento) .cabecera,
+  .aviso-sin-auth,
+  .no-imprimir { display: none !important; }
+
+  body { background: #fff; }
+  /* Más apretado que en pantalla: la hoja de servicio entera, con sus diez
+     filas de tareas, tiene que caber en un solo A4. */
+  .documento { max-width: none; margin: 0; padding: 0; border: 0; font-size: 9.5pt; }
+  .documento__cabecera { padding-bottom: 0.6rem; }
+  .documento__logo { width: 4.75rem; height: 4.75rem; }
+  .documento__bloque { margin-top: 0.8rem; }
+  :where(.documento__tabla) :where(th, td) { padding-block: 0.18rem; }
+  .documento__dato dd { min-height: 1.15rem; }
+  .documento__firmas { margin-top: 1.75rem; }
+  .documento__firma-raya { height: 2rem; }
+  .documento__despedida { margin-top: 1rem !important; padding-top: 0.5rem; }
+  .documento__tabla tr, .documento__firmas { break-inside: avoid; }
+}

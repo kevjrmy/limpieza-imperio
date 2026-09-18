@@ -505,9 +505,14 @@ caminos por los que pasaba están cerrados en `acciones.js`:
 `documentos.cliente_id` es también `ON DELETE SET NULL`, y está atendido igual:
 `aplicarFusion` mueve los documentos del cliente absorbido al que se queda, y
 `borrarCliente` se niega si el cliente tiene alguno. La fusión de clientes pasa
-además el DNI/NIF del absorbido al que se queda si éste no tenía. El teléfono y
-la dirección del absorbido, en cambio, **se siguen perdiendo** al fusionar, como
-desde el principio: está sin decidir con él.
+además el DNI/NIF del absorbido al que se queda si éste no tenía.
+
+**El teléfono, la dirección y el resto de la ficha del absorbido se pierden al
+fusionar, y es una decisión** (septiembre de 2026), no un descuido: manda la
+ficha que se queda, que es la que él elige al aceptar la fusión. Lo que no se
+pierde nunca es lo que cuelga de ella —servicios, documentos, colaborador
+habitual—. El DNI es la única excepción porque es el único dato que los
+documentos copian de la ficha. No añadas más traspasos de campos sin hablarlo.
 
 Las claves foráneas **sí se aplican en tiempo de ejecución** —libSQL trae
 `PRAGMA foreign_keys` en 1 por su cuenta, comprobado—, así que el `SET NULL` y

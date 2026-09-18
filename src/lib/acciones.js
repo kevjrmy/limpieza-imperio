@@ -522,6 +522,13 @@ export const aplicarFusion = accion(async (id) => {
       // su copia de los datos del cliente—, sólo a qué ficha llevan.
       await ejecutar('UPDATE documentos SET cliente_id = ? WHERE cliente_id = ?',
         [destino.id, origen.id]);
+      // El DNI se escribe una vez en la ficha para no repetirlo en cada papel.
+      // Si sólo lo tenía la ficha que se absorbe, se pasa a la que se queda en
+      // vez de borrarlo con ella. Si las dos lo tienen, manda el de la que se
+      // queda: no se pisa lo que él ya eligió.
+      await ejecutar(
+        `UPDATE clientes SET nif = (SELECT nif FROM clientes WHERE id = ?)
+          WHERE id = ? AND nif = ''`, [origen.id, destino.id]);
     } else {
       // Si las dos personas ya estaban en el mismo servicio, la clave primaria
       // compuesta chocaría. El pago del que se absorbe se SUMA al del que se
@@ -587,8 +594,13 @@ export const guardarDocumento = accion(async (tipo, id, crudo) => {
   exigir(esTipo(tipo), 'Tipo de documento desconocido.');
   const t = TIPOS[tipo];
 
-  const numero = Number.parseInt(String(crudo?.numero ?? '').replace(/^#/, ''), 10);
-  exigir(Number.isInteger(numero) && numero > 0, 'El número tiene que ser un entero mayor que cero.');
+  // Dígitos y nada más: `parseInt` se tragaba «12abc» como 12, y un número de
+  // veinte cifras se guardaba como 1e20 y a partir de ahí todas las propuestas
+  // chocaban con él. Seis cifras sobran para un papel por servicio.
+  const escrito = String(crudo?.numero ?? '').trim().replace(/^#/, '');
+  exigir(/^\d{1,6}$/.test(escrito) && Number(escrito) > 0,
+    'El número tiene que ser un entero entre 1 y 999999.');
+  const numero = Number(escrito);
 
   const { contenido, error } = normalizar(tipo, crudo?.contenido);
   exigir(!error, error);
@@ -616,9 +628,11 @@ export const guardarDocumento = accion(async (tipo, id, crudo) => {
       `UPDATE documentos SET numero=?, fecha=?, cliente_id=?, cliente_nombre=?, total=?,
               contenido=?, editado_en=datetime('now')
         WHERE id=? AND tipo=?`, [...campos, Number(id), tipo]);
-    exigir(filas > 0, `Ese documento ya no existe.`);
+    exigir(filas > 0, 'Ese documento ya no existe.');
     revalidatePath(t.ruta);
-    return { ok: true, id: Number(id) };
+    // Se devuelve lo guardado, ya normalizado: la pantalla lo enseña al momento
+    // sin esperar a que llegue el refresco (ver PanelDocumento).
+    return { ok: true, id: Number(id), numero, clienteId, contenido };
   }
 
   const { id: nuevo } = await ejecutar(

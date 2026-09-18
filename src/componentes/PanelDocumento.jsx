@@ -20,8 +20,14 @@ import { codigo } from '../lib/formato.js';
  *
  * `siguiente` es el número que se propone para la copia.
  */
-export default function PanelDocumento({ doc, siguiente, clientes, colaboradores }) {
+export default function PanelDocumento({ doc: delServidor, siguiente, clientes, colaboradores }) {
   const router = useRouter();
+  // Lo último guardado desde aquí, hasta que llegue el refresco con lo mismo.
+  // Sin esto, entre guardar y que llegara la página nueva se seguía viendo el
+  // contenido de antes, y pulsar «Editar» en ese hueco abría el formulario con
+  // lo viejo: guardarlo deshacía la edición.
+  const [guardado, setGuardado] = useState(null);
+  const doc = guardado ? { ...delServidor, ...guardado } : delServidor;
   const t = TIPOS[doc.tipo];
   const [modo, setModo] = useState('leer');   // leer | editar | copiar
   const [enviando, empezar] = useTransition();
@@ -41,7 +47,10 @@ export default function PanelDocumento({ doc, siguiente, clientes, colaboradores
     return (
       <FormularioDocumento tipo={doc.tipo} id={doc.id} numero={doc.numero}
         clienteId={doc.cliente_id} inicial={paraFormulario(doc.tipo, doc.contenido)}
-        clientes={clientes} colaboradores={colaboradores} alTerminar={() => setModo('leer')} />
+        clientes={clientes} colaboradores={colaboradores} alTerminar={() => setModo('leer')}
+        alGuardar={(r) => setGuardado({
+          numero: r.numero, cliente_id: r.clienteId || null, contenido: r.contenido,
+        })} />
     );
   }
 

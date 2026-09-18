@@ -57,11 +57,18 @@ export const IMPORTES_HOJA = [
 
 /**
  * Número desde lo que escribió, tolerando la coma decimal y el símbolo del
- * euro. Lo mismo que hace `num()` en acciones.js con los formularios de siempre.
+ * euro, como `num()` en acciones.js.
+ *
+ * Con una diferencia: si hay coma, los puntos son de millar y se quitan. En una
+ * cuenta de cobro se escriben importes de más de mil, y «1.200,50» se leía
+ * como 1,2. Un punto SIN coma se deja como decimal, porque «83.333» igual es
+ * 83,333 € escrito con punto: adivinar ahí cambiaría un importe sin avisar, y el
+ * total que se ve mientras escribe ya delata el error.
  */
 export function leerNumero(v) {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  const t = String(v ?? '').trim().replace(/[€\s]/g, '').replace(',', '.');
+  let t = String(v ?? '').trim().replace(/[€\s]/g, '');
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
   if (!t) return 0;
   const n = Number.parseFloat(t);
   return Number.isFinite(n) ? n : 0;
@@ -172,8 +179,10 @@ export function copiaParaNueva(tipo, contenido) {
   const d = paraFormulario(tipo, contenido);
   d.fecha = fechaDeHoy();
   if (tipo === 'hoja') {
-    // Lo hecho y quién lo hizo es de aquel día, no de éste.
+    // Lo hecho es de aquel día, no de éste. Y si aquella se facturó, ésta
+    // todavía no: copiarlo imprimiría «Facturado: Sí» en un servicio sin cobrar.
     d.tareas = d.tareas.map((t) => ({ ...t, realizada: false, observaciones: '' }));
+    d.facturado = false;
   } else {
     // Las fechas de cada línea eran las de aquellos trabajos. Copiarlas
     // imprimiría en un papel nuevo unas fechas que no son las suyas.
@@ -260,7 +269,11 @@ export function normalizar(tipo, d) {
             realizada: Boolean(t?.realizada),
             responsable: txt(t?.responsable, 200),
           }))
-          .filter((t) => t.descripcion || t.cantidad || t.observaciones),
+          // Sólo se descarta la fila del todo vacía. Una con la casilla de
+          // hecha o un responsable puestos es algo que él escribió, y
+          // tirarla sin decir nada sería corregirle en silencio.
+          .filter((t) => t.descripcion || t.cantidad || t.observaciones
+            || t.realizada || t.responsable),
         personal: lista(d.personal, 50).map((p) => txt(p, 200)).filter(Boolean),
         horasContratadas: leerNumero(d.horasContratadas),
         horasExtras: leerNumero(d.horasExtras),
@@ -280,7 +293,9 @@ export function normalizar(tipo, d) {
       importe: leerNumero(l?.importe),
       fecha: fechaValida(l?.fecha) ? l.fecha : '',
     }))
-    .filter((l) => l.descripcion || l.importe);
+    // La cantidad no cuenta para decidir si está vacía: una línea nueva ya
+    // nace con un 1, y guardaría filas en blanco.
+    .filter((l) => l.descripcion || l.importe || l.fecha);
   if (!lineas.length) return { error: 'La cuenta de cobro necesita al menos una línea.' };
 
   return {

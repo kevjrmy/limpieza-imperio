@@ -504,7 +504,10 @@ caminos por los que pasaba están cerrados en `acciones.js`:
 
 `documentos.cliente_id` es también `ON DELETE SET NULL`, y está atendido igual:
 `aplicarFusion` mueve los documentos del cliente absorbido al que se queda, y
-`borrarCliente` se niega si el cliente tiene alguno.
+`borrarCliente` se niega si el cliente tiene alguno. La fusión de clientes pasa
+además el DNI/NIF del absorbido al que se queda si éste no tenía. El teléfono y
+la dirección del absorbido, en cambio, **se siguen perdiendo** al fusionar, como
+desde el principio: está sin decidir con él.
 
 Las claves foráneas **sí se aplican en tiempo de ejecución** —libSQL trae
 `PRAGMA foreign_keys` en 1 por su cuenta, comprobado—, así que el `SET NULL` y
@@ -572,6 +575,22 @@ maquetación A4; en impresión sólo sale el `.documento`.
 - **El número se propone —el más alto más uno— y él lo puede cambiar, pero no
   repetir** (`UNIQUE (tipo, numero)`, y la acción lo dice antes de chocar). Las
   cuentas de cobro empiezan proponiendo el 24 porque su Excel iba por el 23.
+  Sólo se aceptan de 1 a 6 dígitos: con `parseInt` a secas «12abc» pasaba como
+  12, y un número de veinte cifras se guardaba como 1e20 y dejaba todas las
+  propuestas siguientes chocando con él.
+- **«Nueva a partir de esta» limpia lo que es de aquel día**: las casillas de
+  hecha, las observaciones de cada tarea, «Facturado» y las fechas de las líneas
+  (`copiaParaNueva`). Si añades un campo que describa lo que pasó y no lo que se
+  va a hacer, va también ahí.
+- **Al guardar no se tira nada que él haya escrito.** Sólo se descarta la fila
+  del todo vacía: una tarea con sólo la casilla o el responsable se queda. En
+  las líneas de cobro la cantidad no cuenta, porque nacen con un 1.
+- **`leerNumero` quita los puntos de millar sólo si hay coma** («1.200,50» →
+  1200,5). Un punto sin coma se deja como decimal: «83.333» puede ser 83,333 €
+  escrito con punto, y adivinar ahí cambiaría un importe sin avisar.
+- **Tras editar, la pantalla enseña lo que devuelve la acción** hasta que llega
+  el refresco (`PanelDocumento`). Sin eso, pulsar «Editar» otra vez en ese hueco
+  abría el contenido anterior y guardarlo deshacía la edición.
 - **El DNI/NIF vive en la ficha del cliente** (`clientes.nif`), no en cada
   papel: al elegir el cliente se copia. Lo pidió así para no reescribirlo.
 - **La cuenta de cobro no es una factura** y no la conviertas en una sin

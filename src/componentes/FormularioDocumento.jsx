@@ -25,7 +25,7 @@ import { intentar } from './intentar.js';
  */
 export default function FormularioDocumento({
   tipo, id = null, numero: numeroInicial, clienteId: clienteInicial = null, inicial,
-  clientes = [], colaboradores = [], origen = null, alTerminar,
+  clientes = [], colaboradores = [], origen = null, alTerminar, alGuardar,
 }) {
   const router = useRouter();
   const t = TIPOS[tipo];
@@ -53,7 +53,14 @@ export default function FormularioDocumento({
       const r = await intentar(() => guardarDocumento(tipo, id, { numero, clienteId, contenido: d }));
       if (r?.error) { setError(r.error); return; }
 
-      if (id) { router.refresh(); alTerminar?.(); return; }
+      if (id) {
+        alGuardar?.(r);
+        // Sin `?guardado=…`: el aviso de «guardada como» era del alta, y
+        // seguía saliendo después de cada edición.
+        router.replace(`${t.ruta}/${id}`);
+        alTerminar?.();
+        return;
+      }
       // Lo recién creado se abre directamente: así se ve que existe, con su
       // número, y que el de origen sigue siendo otro.
       const q = new URLSearchParams({ guardado: '1' });

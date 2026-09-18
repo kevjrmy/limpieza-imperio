@@ -608,6 +608,13 @@ maquetación A4; en impresión sólo sale el `.documento`.
   total, días de validez (se imprime «válido hasta») y un `estado` —pendiente,
   aceptado, rechazado— que **no se imprime** y que la copia devuelve a
   pendiente. La lista lo lee con `json_extract` del contenido.
+- **El presupuesto se diseñó sin poder preguntarle** (18 de septiembre de
+  2026): él sólo dijo «solo me falta una hoja de presupuesto». Se dedujo de su
+  pestaña `COTIZACION DE SERVICIO` y de su web. **Pendiente de confirmar con él
+  la primera vez que lo use**: si la maquetación se parece a lo que manda, si
+  quiere hora × precio o sólo precio por línea, si el plazo de 30 días y el IVA
+  al 21 % de entrada le valen, y si echa en falta pasar un aceptado a servicios
+  o a cuenta de cobro. Lo que diga manda sobre lo que se dedujo aquí.
 - **Un presupuesto aceptado no crea servicios ni cuentas de cobro.** Es dinero
   que aún no ha entrado. Engancharlo sería el siguiente paso si él lo pide, no
   algo que añadir de paso.

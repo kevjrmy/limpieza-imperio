@@ -489,6 +489,13 @@ Ahora el índice es **parcial** —sólo los borradores— y la lista de cliente
 antes de cruzar. Un índice sobre una columna que casi siempre vale lo mismo es
 peor que no tener ninguno. El detalle y cómo comprobarlo están en `CLAUDE.md`.
 
+Lo que quedaba era inherente: el resumen y los márgenes por cliente salen de
+sumar todos los servicios. Eso no se abarata con una consulta mejor, así que
+**se calcula una vez y se guarda hasta que él escribe algo**. Cualquier acción
+lo tira todo —sin distinguir qué tabla tocó— y la pantalla siguiente lee de la
+base. Lo que mira para editar no se guarda nunca. El precio: un cambio hecho
+por fuera de la aplicación tarda hasta una hora en verse.
+
 ## El respaldo
 
 ```bash

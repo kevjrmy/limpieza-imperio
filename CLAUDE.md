@@ -23,6 +23,14 @@ aplicó una fusión —de ahí que clientes y colaboradores bajen de 140 y 110 a
 y 109, porque la absorbida se borra— y apuntó un servicio más. Cualquier cifra
 de aquí abajo es de cuando se escribió: para saber lo de hoy, mira la base.
 
+**Octubre de 2026, de un vistazo.** El día 1 Turso tenía la cuenta bloqueada
+por pasarse de cuota de filas leídas: el login cargaba y nada más. De ahí
+salieron tres cosas, cada una con su sección: las consultas dejaron de leer de
+más y el índice culpable se cambió en su base; lo que suma todos los servicios
+se guarda entre peticiones y cada acción lo invalida; y la base se manda sola
+por correo cada lunes. Ver *Turso cobra por fila leída* y *El respaldo semanal
+por correo*.
+
 **Sólo hay una base de datos**, la de su cuenta. La vieja se borró a conciencia
 para que nadie la confunda con la buena. El respaldo vive fuera de git, en
 `.datos/`, y es lo único que hay si algo sale mal: trátalo como tal.
@@ -129,9 +137,13 @@ docs/             archivos reales del cliente (fuera de git)
 Reparto de responsabilidades:
 
 - **`consultas.js`** lee, **`acciones.js`** escribe. Las dos exigen sesión en
-  cada función; ver *Autenticación* más abajo.
+  cada función; ver *Autenticación* más abajo. Las lecturas caras de
+  `consultas.js` se guardan entre peticiones y **toda acción las invalida**: una
+  escritura que no pase por `accion()` deja las pantallas con cifras viejas. Ver
+  *Lo que se guarda entre peticiones*.
 - **`db.js`** es lo único que habla con libSQL. Los scripts lo usan directo y
-  por eso se saltan la comprobación de sesión, que es lo correcto.
+  por eso se saltan la comprobación de sesión, que es lo correcto. La otra
+  excepción es `api/respaldo`, que no tiene sesión y va con `CRON_SECRET`.
 - **`firma.js` y `clave.js`** no tocan ni Next ni la base: son `node:crypto` y
   nada más. `firma.js` es lo único de `lib/` que puede importar el proxy.
 - **`parser.js`, `agrupar.js`, `metricas.js`** ya no los usa la interfaz: son
@@ -216,6 +228,10 @@ relanzarlo sería justo el fallo del que protege.
 **Ejecútalo antes de cualquier `npm run esquema` que vaya a la base del
 cliente.** Es la única copia que hay.
 
+Y cuenta con que **lo que un script cambie en su base tarda hasta una hora en
+verse en la aplicación**: los scripts no pasan por las acciones, así que no
+invalidan lo guardado. Ver *Lo que se guarda entre peticiones*.
+
 Un detalle que costó encontrarlo y que no se puede deshacer al revés: **las
 columnas generadas no se copian**. `servicios.margen` lo es, así que un
 `SELECT *` la trae y el INSERT de vuelta muere con «cannot INSERT into generated
@@ -248,7 +264,60 @@ Cada lunes de madrugada el cron de Vercel (`vercel.json`) llama a
 - El horario del cron va en UTC (`0 5 * * 1`): las 6 en invierno y las 7 en
   verano, hora de Madrid.
 
-### Turso cobra por fila leída
+### Comprobar que la base sigue cuadrando
+
+`npm run sembrar` contrasta lo insertado contra el propio `.ods` y **sale con
+error si algo no cuadra**: una siembra a medias es peor que ninguna. Deben salir
+164 clientes, 154 colaboradores, 996 servicios, 82.865,60 € facturados y el
+reparto exactamente igual al pago de los servicios con colaborador asignado.
+
+Después de tocar cualquier cosa que escriba, esta consulta tiene que dar dos
+números idénticos — es la que detecta un reparto roto:
+
+```sql
+SELECT ROUND((SELECT SUM(pago) FROM servicio_colaborador), 2)                AS repartido,
+       ROUND((SELECT SUM(s.pago_colab) FROM servicios s
+               WHERE EXISTS (SELECT 1 FROM servicio_colaborador x
+                              WHERE x.servicio_id = s.id)), 2)               AS asignado;
+```
+
+### Probar que no se escapa nada sin autenticar
+
+Que la página cargue no demuestra nada, y con datos reales dentro esto no es
+opcional. Hay dos escenarios y los dos hay que pasarlos.
+
+**Sin las variables de autenticación** —`next build && next start` a secas— la
+aplicación no puede servir absolutamente nada:
+
+```bash
+for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
+  curl -s "http://localhost:3000$u" | grep -ci "<un nombre real del libro>"
+done   # todos tienen que dar 0
+```
+
+**Con las variables puestas pero sin cookie**, toda ruta tiene que rebotar a
+`/entrar` y no soltar nada por el camino:
+
+```bash
+for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
+  curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "http://localhost:3000$u"
+  curl -s -L "http://localhost:3000$u"            | grep -ci "<un nombre>"
+  curl -s -L -H 'RSC: 1' "http://localhost:3000$u" | grep -ci "<un nombre>"
+done   # 307 hacia /entrar, y ceros en las dos búsquedas
+```
+
+Se comprobó y **falló** la primera vez: mirar sólo la página renderizada engaña,
+porque los datos viajan además en la carga RSC. Por eso se busca en el HTML
+crudo y con la cabecera `RSC: 1`, no en el texto visible.
+
+## Turso cobra por fila leída
+
+Es lo que bloqueó la cuenta y lo que hay que tener en la cabeza al escribir
+cualquier lectura. Dos cosas lo mantienen a raya, y son independientes: que las
+consultas no lean de más (*El índice que sobraba*) y que lo caro no se repita en
+cada pantalla (*Lo que se guarda entre peticiones*).
+
+### El índice que sobraba
 
 El 1 de octubre de 2026 la cuenta amaneció bloqueada —«reads are blocked»— por
 pasarse de cuota en septiembre, y siguió así hasta unas ocho horas después de
@@ -302,63 +371,54 @@ tiene que dar una fila y sólo una, la del índice parcial:
 SELECT name, sql FROM sqlite_master WHERE name LIKE 'idx_servicios_borr%';
 ```
 
-Lo que sigue leyendo todos los servicios, y es inherente a lo que enseña: el
-resumen, `/clientes` y `/colaboradores` (suman el dinero de cada uno), la lista
-de meses del filtro, el contador de «N servicios» y la búsqueda de servicios,
-que pliega los acentos en JavaScript. Son miles de filas por carga, no cientos
-de miles. Lo siguiente, si el panel de Turso dijera que hace falta, serían
-totales guardados en vez de recalculados — y eso es una migración de verdad.
-
 **Si añades una consulta, mira su plan** con `EXPLAIN QUERY PLAN` sobre una
 copia. Un `SCAN` de `servicios` donde esperabas un `SEARCH`, o un `SEARCH`
 dentro de un bucle que no usa la columna del cruce, es este mismo fallo. Y **no
 pongas índice a una columna que casi siempre vale lo mismo**.
 
-### Comprobar que la base sigue cuadrando
+### Lo que se guarda entre peticiones
 
-`npm run sembrar` contrasta lo insertado contra el propio `.ods` y **sale con
-error si algo no cuadra**: una siembra a medias es peor que ninguna. Deben salir
-164 clientes, 154 colaboradores, 996 servicios, 82.865,60 € facturados y el
-reparto exactamente igual al pago de los servicios con colaborador asignado.
+El resumen, `/clientes` y `/colaboradores` suman todos los servicios porque de
+eso van, y eso no hay consulta que lo abarate. Lo que sí sobraba era repetir la
+suma en cada pantalla: él navega mucho más de lo que guarda. Desde octubre de
+2026 esas lecturas **se calculan una vez y se reutilizan hasta que algo
+cambia** (`guardada()` en `consultas.js`, sobre `unstable_cache` de Next).
 
-Después de tocar cualquier cosa que escriba, esta consulta tiene que dar dos
-números idénticos — es la que detecta un reparto roto:
+Se guarda: `totales`, `porMes`, `periodos`, las filas de `clientes` y
+`colaboradores` por mes, `listaClientes`, `listaColaboradores`, `pendientes`, el
+recuento de servicios sin búsqueda y las filas sobre las que se busca. **No se
+guarda lo que él mira para editar** —la lista de servicios, una ficha, un
+documento, los gastos—: eso sale siempre de la base.
 
-```sql
-SELECT ROUND((SELECT SUM(pago) FROM servicio_colaborador), 2)                AS repartido,
-       ROUND((SELECT SUM(s.pago_colab) FROM servicios s
-               WHERE EXISTS (SELECT 1 FROM servicio_colaborador x
-                              WHERE x.servicio_id = s.id)), 2)               AS asignado;
-```
+- **Toda acción de `acciones.js` lo tira todo al terminar, salga bien o mal**
+  (`updateTag(ETIQUETA_DATOS)` en el envoltorio `accion()`). No hay
+  invalidación fina por tabla, a propósito: con un usuario, tirarlo todo cuesta
+  unas miles de filas y no deja ningún caso en el que una pantalla enseñe un
+  número viejo. **Una escritura nueva tiene que ir dentro de `accion()`**; si
+  escribe por otro camino, las pantallas no se enteran.
+- **Lo que no pasa por las acciones no invalida nada**: un script contra la base
+  del cliente, una restauración, un cambio a mano en el panel de Turso. Tarda
+  hasta **una hora** en verse, que es la caducidad. **Redesplegar no lo vacía**:
+  lo guardado sobrevive a los despliegues. Si tras tocar la base por fuera las
+  cifras «no cambian», es esto, no un fallo; cualquier guardado desde la
+  aplicación lo arregla en el acto.
+- **Sólo en producción** (`NODE_ENV`). En desarrollo se lee siempre: la base
+  local se rehace con `npm run sembrar` y la pantalla enseñaría la anterior.
+  Para probarlo en local hace falta `next build && next start` con las tres
+  variables de autenticación en la línea de órdenes.
+- **La sesión se comprueba fuera de lo guardado**, en `protegida()`, en cada
+  llamada. Dentro de una función guardada no se leen cookies ni cabeceras.
+- Lo guardado vive en la caché de datos de Vercel, en su cuenta: nombres,
+  direcciones, teléfonos y DNI incluidos. Es el mismo sitio donde ya corre la
+  aplicación, pero es un sitio más donde reposan.
+- Es `unstable_cache` y no `'use cache'`, que la sustituye en Next 16: ésa pide
+  activar Cache Components, que cambia cómo se renderiza toda la aplicación.
 
-### Probar que no se escapa nada sin autenticar
-
-Que la página cargue no demuestra nada, y con datos reales dentro esto no es
-opcional. Hay dos escenarios y los dos hay que pasarlos.
-
-**Sin las variables de autenticación** —`next build && next start` a secas— la
-aplicación no puede servir absolutamente nada:
-
-```bash
-for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
-  curl -s "http://localhost:3000$u" | grep -ci "<un nombre real del libro>"
-done   # todos tienen que dar 0
-```
-
-**Con las variables puestas pero sin cookie**, toda ruta tiene que rebotar a
-`/entrar` y no soltar nada por el camino:
-
-```bash
-for u in / /servicios /clientes /clientes/1 /revisar /api/exportar/servicios; do
-  curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "http://localhost:3000$u"
-  curl -s -L "http://localhost:3000$u"            | grep -ci "<un nombre>"
-  curl -s -L -H 'RSC: 1' "http://localhost:3000$u" | grep -ci "<un nombre>"
-done   # 307 hacia /entrar, y ceros en las dos búsquedas
-```
-
-Se comprobó y **falló** la primera vez: mirar sólo la página renderizada engaña,
-porque los datos viajan además en la carga RSC. Por eso se busca en el HTML
-crudo y con la cabecera `RSC: 1`, no en el texto visible.
+Comprobado en local con el build de producción sobre una copia de la base real:
+un cambio hecho por fuera no se ve hasta que una acción invalida; tras la acción
+se ve en la siguiente carga; sin cookie no se sirve nada; y 25 pantallas y
+exportaciones dan el mismo texto que sin guardar nada. **En Vercel no se ha
+podido medir**: la señal es el contador de filas leídas del panel de Turso.
 
 ## El libro modelo de 2026
 

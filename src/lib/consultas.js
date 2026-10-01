@@ -17,6 +17,7 @@
  */
 
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 
 import { consultar, consultarUna } from './db.js';
 import { exigirSesion } from './sesion.js';
@@ -65,6 +66,50 @@ function coincideFicha(fila, busqueda) {
   return id === null ? coincide(fila.nombre, busqueda) : Number(fila.id) === id;
 }
 
+/**
+ * Lo que se guarda entre peticiones, y por qué.
+ *
+ * Turso cobra por fila leída, y casi todo lo que enseña esta aplicación sale de
+ * sumar TODOS los servicios: el resumen, el margen por cliente, lo cobrado por
+ * colaborador. Él navega mucho más de lo que guarda, así que recalcularlo en
+ * cada pantalla era leer la tabla entera una y otra vez para llegar al mismo
+ * número. Las lecturas envueltas en `guardada()` se calculan una vez y se
+ * reutilizan hasta que algo cambia.
+ *
+ * **Qué las invalida:** toda acción de `acciones.js` llama a
+ * `updateTag(ETIQUETA_DATOS)` al terminar, salga bien o mal (está en el
+ * envoltorio `accion()`, no en cada acción, para que no se pueda olvidar). La
+ * pantalla que se pinta justo después ya lee de la base. No hay invalidación
+ * fina por tabla a propósito: con un solo usuario, tirarlo todo en cada
+ * escritura cuesta unas miles de filas y no deja ningún caso en el que una
+ * pantalla enseñe un número viejo.
+ *
+ * **Lo que NO pasa por las acciones no invalida nada**: un script contra la
+ * base, una restauración, un cambio a mano en el panel de Turso. Para eso está
+ * la caducidad de una hora. Redesplegar NO lo vacía: lo guardado sobrevive a
+ * los despliegues.
+ *
+ * Sólo en producción. En desarrollo iría contra `.datos/limpiezas.db`, que se
+ * rehace con `npm run sembrar`, y la pantalla seguiría enseñando la base
+ * anterior sin motivo aparente.
+ *
+ * La sesión se comprueba FUERA, en `protegida()`, en cada llamada: lo guardado
+ * no se entrega a nadie sin sesión. Y dentro de una función guardada no se
+ * pueden leer cookies ni cabeceras.
+ *
+ * Es `unstable_cache` y no la directiva `'use cache'` que la sustituye en
+ * Next 16: ésa exige activar Cache Components, que cambia cómo se renderiza la
+ * aplicación entera. Si algún día se activa, esto es lo que hay que migrar.
+ *
+ * NO se guarda lo que él está mirando para editar: la lista de servicios, una
+ * ficha, un documento. Eso se lee siempre de la base.
+ */
+export const ETIQUETA_DATOS = 'datos';
+
+const guardada = (nombre, fn) => (process.env.NODE_ENV === 'production'
+  ? unstable_cache(fn, [nombre], { tags: [ETIQUETA_DATOS], revalidate: 3600 })
+  : fn);
+
 /** Envuelve una lectura para que no se ejecute sin sesión válida. */
 function protegida(fn) {
   return async (...args) => {
@@ -74,14 +119,14 @@ function protegida(fn) {
 }
 
 // Se exportan envueltas: ninguna lectura llega a la base sin sesión.
-export const totales = protegida(_totales);
-export const porMes = protegida(_porMes);
-export const periodos = protegida(_periodos);
+export const totales = protegida(guardada('totales', _totales));
+export const porMes = protegida(guardada('porMes', _porMes));
+export const periodos = protegida(guardada('periodos', _periodos));
 export const clientes = protegida(_clientes);
 export const cliente = protegida(_cliente);
 export const serviciosDeCliente = protegida(_serviciosDeCliente);
 export const colaboradores = protegida(_colaboradores);
-export const listaColaboradores = protegida(_listaColaboradores);
+export const listaColaboradores = protegida(guardada('listaColaboradores', _listaColaboradores));
 export const colaborador = protegida(_colaborador);
 export const servicios = protegida(_servicios);
 export const contarServicios = protegida(_contarServicios);
@@ -94,13 +139,13 @@ export const resumenAvisos = protegida(_resumenAvisos);
 export const fusiones = protegida(_fusiones);
 // La piden el layout y además dos páginas: con `cache` se lee una vez por
 // petición en lugar de dos.
-export const pendientes = cache(protegida(_pendientes));
+export const pendientes = cache(protegida(guardada('pendientes', _pendientes)));
 export const estadoDelMes = protegida(_estadoDelMes);
 export const mesesConBorradores = protegida(_mesesConBorradores);
 export const mesAnteriorCon = protegida(_mesAnteriorCon);
 export const serviciosParaRecurrencia = protegida(_serviciosParaRecurrencia);
 export const analizarRecurrencia = protegida(_analizarRecurrencia);
-export const listaClientes = protegida(_listaClientes);
+export const listaClientes = protegida(guardada('listaClientes', _listaClientes));
 export const documentos = protegida(_documentos);
 export const documento = protegida(_documento);
 export const siguienteNumero = protegida(_siguienteNumero);
@@ -170,8 +215,10 @@ async function _periodos() {
 // carga de /, /servicios y /clientes, y creciendo con el producto de las dos
 // tablas. Turso cobra por fila leída, y eso bloqueó la cuenta en septiembre de
 // 2026. Así cada servicio se lee una vez. Da exactamente las mismas filas.
-async function _clientes({ busqueda = '', periodo = '' } = {}) {
-  const filas = await consultar(`
+//
+// Lo guardado son las filas de un mes (o de todos); la búsqueda se aplica
+// después, sobre la copia, para que cada cosa que teclee no sea otra entrada.
+const filasClientes = guardada('clientes', (periodo) => consultar(`
     SELECT c.id, c.nombre, c.direccion, c.codigo_postal, c.provincia,
            c.telefono, c.notas,
            c.colaborador_id,
@@ -194,8 +241,10 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
                   WHERE (?1 = '' OR periodo = ?1)
                   GROUP BY cliente_id) s
              ON s.cliente_id = c.id
-     ORDER BY margen DESC, c.nombre`, [periodo]);
+     ORDER BY margen DESC, c.nombre`, [periodo]));
 
+async function _clientes({ busqueda = '', periodo = '' } = {}) {
+  const filas = await filasClientes(periodo);
   return busqueda ? filas.filter((c) => coincideFicha(c, busqueda)) : filas;
 }
 
@@ -246,8 +295,7 @@ async function _serviciosDeCliente(id) {
 // La búsqueda mira sólo el nombre, igual que en clientes: es lo que se recuerda
 // de una persona y lo único que se teclea sin dudar. Va como parámetro, nunca
 // concatenada al SQL.
-async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
-  const filas = await consultar(`
+const filasColaboradores = guardada('colaboradores', (periodo) => consultar(`
     SELECT co.id, co.nombre, co.telefono, co.notas,
            co.direccion, co.barrio, co.provincia,
            -- activo no se enseña en esta tabla, pero SÍ hace falta: la fila se
@@ -273,8 +321,10 @@ async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
              ON s.id = sc.servicio_id
             AND (?1 = '' OR s.periodo = ?1)
      GROUP BY co.id
-     ORDER BY pago DESC, co.nombre`, [periodo]);
+     ORDER BY pago DESC, co.nombre`, [periodo]));
 
+async function _colaboradores({ periodo = '', busqueda = '' } = {}) {
+  const filas = await filasColaboradores(periodo);
   return busqueda ? filas.filter((c) => coincideFicha(c, busqueda)) : filas;
 }
 
@@ -333,15 +383,17 @@ function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
  * Devuelve números salidos de la propia base, así que se pueden interpolar en
  * el `IN (...)`; el texto que escribe él no llega nunca al SQL.
  */
-async function serviciosQueCoinciden(busqueda) {
-  const filas = await consultar(`
+const filasParaBuscar = guardada('filasParaBuscar', () => consultar(`
     SELECT s.id, s.cliente_id AS clienteId, c.nombre AS cliente, s.notas,
            (SELECT GROUP_CONCAT(co.nombre, ' · ')
               FROM servicio_colaborador sc
               JOIN colaboradores co ON co.id = sc.colaborador_id
              WHERE sc.servicio_id = s.id) AS quienes
       FROM servicios s
-      JOIN clientes c ON c.id = s.cliente_id`);
+      JOIN clientes c ON c.id = s.cliente_id`));
+
+async function serviciosQueCoinciden(busqueda) {
+  const filas = await filasParaBuscar();
 
   const id = idBuscado(busqueda);
   if (id !== null) {
@@ -381,14 +433,24 @@ async function _servicios({ limite = 200, desde = 0, busqueda = '', ...filtros }
      LIMIT ? OFFSET ?`, [...args, limite, desde]);
 }
 
-async function _contarServicios({ busqueda = '', ...filtros } = {}) {
-  const ids = busqueda ? await serviciosQueCoinciden(busqueda) : null;
-  const { donde, args } = condicionesServicios({ ...filtros, ids });
+async function contarCon(filtros) {
+  const { donde, args } = condicionesServicios(filtros);
   const f = await consultarUna(`
     SELECT COUNT(*) AS n
       FROM servicios s
       ${donde}`, args);
   return f?.n ?? 0;
+}
+
+// Sin búsqueda, el recuento depende sólo de un puñado de filtros y se guarda.
+// Con búsqueda lleva la lista de id, que es distinta para cada cosa tecleada.
+const contarSinBuscar = guardada('contarServicios', contarCon);
+
+async function _contarServicios({ busqueda = '', periodo = '', clienteId = '',
+  revisar = false, borrador = 'no' } = {}) {
+  const filtros = { periodo, clienteId, revisar, borrador };
+  if (!busqueda) return contarSinBuscar(filtros);
+  return contarCon({ ...filtros, ids: await serviciosQueCoinciden(busqueda) });
 }
 
 async function _servicio(id) {

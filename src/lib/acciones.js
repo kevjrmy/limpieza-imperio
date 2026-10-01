@@ -13,13 +13,13 @@
  *  · El margen no se escribe nunca: lo calcula la base.
  */
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 import { consultar, consultarUna, ejecutar, enLote } from './db.js';
 import { repartir } from './metricas.js';
 import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
-import { serviciosParaRecurrencia } from './consultas.js';
+import { ETIQUETA_DATOS, serviciosParaRecurrencia } from './consultas.js';
 import { nombrePeriodo, codigo } from './formato.js';
 import { TIPOS, esTipo, normalizar, calcular } from './documentos.js';
 
@@ -48,12 +48,22 @@ function exigir(condicion, mensaje) {
  * Envuelve una acción: exige sesión y devuelve { ok } o { error } en vez de
  * reventar. La sesión se comprueba aquí, en la puerta de cada escritura, y no
  * sólo en el proxy — una acción de servidor es una URL como cualquier otra.
+ *
+ * Al terminar tira lo que `consultas.js` tiene guardado, **salga bien o mal**:
+ * una acción que falla a medias puede haber escrito algo antes de fallar, y un
+ * total viejo en pantalla es peor que una lectura de más. Va aquí y no en cada
+ * acción para que una acción nueva no pueda olvidarlo. Sólo tras comprobar la
+ * sesión: quien no la tiene no ha escrito nada.
  */
 function accion(fn) {
   return async (...args) => {
     try {
       await exigirSesion();
-      return await fn(...args);
+      try {
+        return await fn(...args);
+      } finally {
+        updateTag(ETIQUETA_DATOS);
+      }
     } catch (e) {
       // Next señaliza redirecciones y 404 lanzando un error con `digest`. Si lo
       // capturamos como si fuera un fallo, la redirección al login nunca ocurre

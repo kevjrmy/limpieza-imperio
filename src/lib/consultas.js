@@ -158,6 +158,14 @@ async function _periodos() {
 // Los filtros opcionales van como parámetro con centinela ('' = sin filtro) en
 // vez de armando el SQL con trozos de cadena. La consulta es siempre la misma,
 // así que se puede leer entera aquí y no hay forma de colar texto en ella.
+//
+// Los servicios se suman ANTES de cruzarlos con los clientes, en una subconsulta
+// agrupada, y no con un LEFT JOIN directo a `v_servicios`. Con el JOIN directo
+// SQLite entraba por el índice de `borrador` y recorría todos los servicios
+// confirmados una vez por cliente: 180 × 1.450 = 261.000 filas leídas en cada
+// carga de /, /servicios y /clientes, y creciendo con el producto de las dos
+// tablas. Turso cobra por fila leída, y eso bloqueó la cuenta en septiembre de
+// 2026. Así cada servicio se lee una vez. Da exactamente las mismas filas.
 async function _clientes({ busqueda = '', periodo = '' } = {}) {
   const filas = await consultar(`
     SELECT c.id, c.nombre, c.direccion, c.codigo_postal, c.provincia,
@@ -165,17 +173,23 @@ async function _clientes({ busqueda = '', periodo = '' } = {}) {
            c.colaborador_id,
            co.nombre                         AS colaborador_nombre,
            co.telefono                       AS colaborador_telefono,
-           COUNT(s.id)                       AS servicios,
-           COALESCE(SUM(s.horas), 0)         AS horas,
-           COALESCE(SUM(s.valor), 0)         AS facturado,
-           COALESCE(SUM(s.margen), 0)        AS margen,
-           MAX(s.fecha)                      AS ultimo
+           COALESCE(s.servicios, 0)          AS servicios,
+           COALESCE(s.horas, 0)              AS horas,
+           COALESCE(s.facturado, 0)          AS facturado,
+           COALESCE(s.margen, 0)             AS margen,
+           s.ultimo                          AS ultimo
       FROM clientes c
       LEFT JOIN colaboradores co ON co.id = c.colaborador_id
-      LEFT JOIN v_servicios s
+      LEFT JOIN (SELECT cliente_id,
+                        COUNT(*)    AS servicios,
+                        SUM(horas)  AS horas,
+                        SUM(valor)  AS facturado,
+                        SUM(margen) AS margen,
+                        MAX(fecha)  AS ultimo
+                   FROM v_servicios
+                  WHERE (?1 = '' OR periodo = ?1)
+                  GROUP BY cliente_id) s
              ON s.cliente_id = c.id
-            AND (?1 = '' OR s.periodo = ?1)
-     GROUP BY c.id
      ORDER BY margen DESC, c.nombre`, [periodo]);
 
   return busqueda ? filas.filter((c) => coincideFicha(c, busqueda)) : filas;

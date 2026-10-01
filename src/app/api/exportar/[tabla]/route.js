@@ -79,15 +79,25 @@ const TABLAS = {
              c.telefono, c.nif, c.notas,
              co.nombre   AS colaborador_nombre,
              co.telefono AS colaborador_telefono,
-             COUNT(s.id) AS servicios,
-             COALESCE(SUM(s.horas), 0)  AS horas,
-             COALESCE(SUM(s.valor), 0)  AS facturado,
-             COALESCE(SUM(s.margen), 0) AS margen,
-             MAX(s.fecha) AS ultimo
+             COALESCE(s.servicios, 0) AS servicios,
+             COALESCE(s.horas, 0)     AS horas,
+             COALESCE(s.facturado, 0) AS facturado,
+             COALESCE(s.margen, 0)    AS margen,
+             s.ultimo AS ultimo
         FROM clientes c
         LEFT JOIN colaboradores co ON co.id = c.colaborador_id
-        LEFT JOIN v_servicios s ON s.cliente_id = c.id AND (?1 = '' OR s.periodo = ?1)
-       GROUP BY c.id
+        -- Agrupado antes de cruzar, igual que en consultas.js: el JOIN directo
+        -- a la vista leía todos los servicios una vez por cliente.
+        LEFT JOIN (SELECT cliente_id,
+                          COUNT(*)    AS servicios,
+                          SUM(horas)  AS horas,
+                          SUM(valor)  AS facturado,
+                          SUM(margen) AS margen,
+                          MAX(fecha)  AS ultimo
+                     FROM v_servicios
+                    WHERE (?1 = '' OR periodo = ?1)
+                    GROUP BY cliente_id) s
+               ON s.cliente_id = c.id
        ORDER BY margen DESC, c.nombre`,
   },
 

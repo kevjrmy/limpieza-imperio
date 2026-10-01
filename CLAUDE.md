@@ -100,6 +100,7 @@ src/app/          rutas: / · /preparar · /servicios · /clientes
                   /entrar
                   api/exportar/[tabla]/route.js
                   api/exportar/mes/[periodo]/route.js
+                  api/respaldo/route.js (el respaldo semanal por correo)
 src/componentes/  PanelServicios · FormularioServicio · PanelGastos
                   PanelPreparar · PanelRevisar · FichaPersona · EditarPersona
                   FormularioCierre · Filtros · Navegacion
@@ -116,6 +117,7 @@ src/lib/          db.js consultas.js acciones.js csv.js esquema.sql
                   parser.js
                   documentos.js (qué lleva cada papel y sus totales, puro)
                   negocio.js (los datos de la cabecera impresa)
+                  respaldo.js (el volcado SQL; lo usan el script y el correo)
 public/           logo.jpg (el de su web, a 480 px)
 src/proxy.js      Next 16 lo llama proxy; era middleware hasta la 15
 scripts/          esquema.mjs · sembrar.mjs · modelo-2026.mjs
@@ -222,6 +224,46 @@ servicio**; sólo lo cantaba al restaurarlo, o sea el día que ya da igual. Se
 detectan con `pragma_table_xinfo` (hidden 2 o 3); `table_info` ni las enseña. Si
 algún día se añade otra columna generada, esto ya la respeta — pero **prueba la
 restauración**, que es lo único que lo demuestra.
+
+### El respaldo semanal por correo
+
+Cada lunes de madrugada el cron de Vercel (`vercel.json`) llama a
+`/api/respaldo`, que vuelca la base con `lib/respaldo.js` —el mismo código que
+`npm run respaldo`, comprobado byte a byte— y la manda adjunta a
+`info@limpiezaselimperio.es` con Resend.
+
+- **Es la única ruta que toca datos sin `exigirSesion()`**: el cron no tiene
+  cookie. La guarda `CRON_SECRET`, que Vercel manda solo en `Authorization`.
+  Sin esa variable no pasa nadie, tampoco el cron. La respuesta no lleva datos.
+- **Si la base no se puede leer, no se manda nada, y es una decisión suya**
+  (octubre de 2026): no quiere correo de fallo. Queda en los registros de
+  Vercel; la única señal que le llega es que ese lunes no hay correo. No añadas
+  un aviso sin hablarlo.
+- **Va a un solo buzón.** El adjunto es la base entera, con direcciones,
+  teléfonos y algún DNI. No añadas destinatarios de paso.
+- Las variables las puso la integración de Resend con el prefijo que se eligió
+  al instalarla: `RESENT_RESEND_API_KEY` y `RESENT_RESEND_EMAIL_DOMAIN`. El
+  prefijo está escrito así; no lo «corrijas» en el código sin cambiarlo en
+  Vercel.
+- El horario del cron va en UTC (`0 5 * * 1`): las 6 en invierno y las 7 en
+  verano, hora de Madrid.
+
+### Turso cobra por fila leída
+
+El 1 de octubre de 2026 la cuenta amaneció bloqueada —«reads are blocked»— por
+pasarse de cuota en septiembre, y siguió así hasta unas ocho horas después de
+que el contador se pusiera a cero. Con el login cargando y todo lo demás roto.
+
+La causa más probable estaba en `_clientes()`: un `LEFT JOIN` directo a
+`v_servicios` que SQLite resolvía entrando por el índice de `borrador` y
+recorriendo todos los servicios confirmados **una vez por cliente** —180 × 1.450
+= 261.000 filas— en cada carga de `/`, `/servicios` y `/clientes`. Ahora los
+servicios se suman en una subconsulta agrupada antes de cruzarlos.
+
+**Si añades una consulta que cruce dos tablas, mira su plan** con
+`EXPLAIN QUERY PLAN` sobre una copia: un `SEARCH … USING INDEX
+idx_servicios_borrador` dentro de un bucle es este mismo fallo. La base no tiene
+estadísticas (`sqlite_stat1`), así que el planificador elige índice a ciegas.
 
 ### Comprobar que la base sigue cuadrando
 
@@ -812,7 +854,8 @@ sin permiso». O las credenciales coinciden o no coinciden.
 - **`consultas.js` no puede importarse desde un componente de cliente**: arrastra
   `sesion.js`, que es sólo de servidor. Lo compartido (`nombrePeriodo`, formato
   de euros y fechas) vive en `formato.js`, que es puro.
-- **`vercel.json` sólo tiene `"framework": "nextjs"`, y hace falta.** El proyecto
+- **`vercel.json` tiene `"framework": "nextjs"` y el cron del respaldo semanal, y
+  lo primero hace falta.** El proyecto
   se creó como Vite y esa preferencia sigue guardada en Vercel; sin esta clave el
   build termina bien pero el despliegue falla buscando una carpeta `dist` que ya
   no existe. No le añadas comandos: se validan contra un esquema que rechaza

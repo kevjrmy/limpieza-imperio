@@ -552,9 +552,6 @@ Las variables ya están en Vercel y las cuatro columnas nuevas ya están en su
 base —respaldo del 19 de agosto de 2026 hecho y restaurado antes de tocarla, y
 las cifras cuadrando al céntimo después—. Queda:
 
-- **Aplicar el cambio de índice a su base** (`npm run esquema` con las
-  variables de Turso, tras un `npm run respaldo`). El código ya está desplegado
-  y funciona igual sin ello; sólo lee de más.
 - Ver llegar el primer respaldo por correo, el lunes 5 de octubre de 2026. El
   envío real no se ha probado.
 

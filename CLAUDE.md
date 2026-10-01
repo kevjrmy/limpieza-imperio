@@ -291,17 +291,16 @@ Comprobado sobre una copia de la base real: 25 pantallas y exportaciones dan
 exactamente el mismo texto con el índice viejo y con el nuevo, borradores
 incluidos.
 
-**El cambio de índice hay que aplicarlo a la base del cliente** con
-`npm run esquema` y las variables de Turso en la línea de órdenes, después de un
-`npm run respaldo`. Desplegar el código no toca la base. Para saber si ya está
-hecho, esto tiene que dar una fila y sólo una, la del índice parcial:
+**El cambio de índice está aplicado en la base del cliente** desde el 1 de
+octubre de 2026, con `npm run esquema` y un respaldo hecho y restaurado antes
+(`.datos/respaldo-2026-10-01-antes-indice.sql`). Desplegar el código no toca la
+base: si algún día se restaura desde un respaldo anterior a esa fecha, vuelve el
+índice viejo y hay que pasar `npm run esquema` otra vez. Para comprobarlo, esto
+tiene que dar una fila y sólo una, la del índice parcial:
 
 ```sql
 SELECT name, sql FROM sqlite_master WHERE name LIKE 'idx_servicios_borr%';
 ```
-
-Mientras no se aplique, la aplicación funciona igual y da los mismos números;
-sólo lee de más.
 
 Lo que sigue leyendo todos los servicios, y es inherente a lo que enseña: el
 resumen, `/clientes` y `/colaboradores` (suman el dinero de cada uno), la lista

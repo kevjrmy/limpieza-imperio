@@ -4,7 +4,7 @@ import PanelServicios from '../../../componentes/PanelServicios.jsx';
 import Filtros from '../../../componentes/Filtros.jsx';
 import AvisoNuevo from '../../../componentes/AvisoNuevo.jsx';
 import {
-  servicios, contarServicios, clientes, colaboradores, periodos, servicio
+  servicios, contarServicios, listaClientes, listaColaboradores, periodos, servicio
 } from '../../../lib/consultas.js';
 import { euros, entero, nombrePeriodo } from '../../../lib/formato.js';
 
@@ -22,11 +22,17 @@ export default async function Servicios({ searchParams }) {
 
   const filtro = { periodo, revisar, borrador, busqueda };
 
-  const [lista, total, listaClientes, listaColab, listaPeriodos] = await Promise.all([
+  // Para los desplegables del formulario bastan el número y el nombre. Antes se
+  // traían `clientes()` y `colaboradores()`, que suman el dinero de todos los
+  // servicios para enseñar una lista de nombres, y además mandaban al navegador
+  // direcciones y teléfonos que esta pantalla no enseña.
+  const soloNombre = (filas) => filas.map(({ id, nombre }) => ({ id, nombre }));
+
+  const [lista, total, nombresClientes, nombresColab, listaPeriodos] = await Promise.all([
     servicios({ ...filtro, limite: POR_PAGINA, desde: (pagina - 1) * POR_PAGINA }),
     contarServicios(filtro),
-    clientes(),
-    colaboradores(),
+    listaClientes().then(soloNombre),
+    listaColaboradores().then(soloNombre),
     periodos(),
   ]);
 
@@ -86,7 +92,7 @@ export default async function Servicios({ searchParams }) {
         </AvisoNuevo>
       )}
 
-      <PanelServicios servicios={lista} clientes={listaClientes} colaboradores={listaColab}
+      <PanelServicios servicios={lista} clientes={nombresClientes} colaboradores={nombresColab}
         periodo={periodo} nuevo={nuevo} />
 
       {paginas > 1 && (

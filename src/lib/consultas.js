@@ -16,6 +16,8 @@
  * les afecta.
  */
 
+import { cache } from 'react';
+
 import { consultar, consultarUna } from './db.js';
 import { exigirSesion } from './sesion.js';
 import { proponerMes } from './recurrencia.js';
@@ -90,7 +92,9 @@ export const cierre = protegida(_cierre);
 export const avisos = protegida(_avisos);
 export const resumenAvisos = protegida(_resumenAvisos);
 export const fusiones = protegida(_fusiones);
-export const pendientes = protegida(_pendientes);
+// La piden el layout y además dos páginas: con `cache` se lee una vez por
+// petición en lugar de dos.
+export const pendientes = cache(protegida(_pendientes));
 export const estadoDelMes = protegida(_estadoDelMes);
 export const mesesConBorradores = protegida(_mesesConBorradores);
 export const mesAnteriorCon = protegida(_mesAnteriorCon);
@@ -302,7 +306,14 @@ function condicionesServicios({ periodo = '', clienteId = '', revisar = false,
   if (clienteId) { filtro.push('s.cliente_id = ?'); args.push(clienteId); }
   if (revisar) filtro.push('s.revisar = 1');
   if (borrador === 'si') filtro.push('s.borrador = 1');
-  else if (borrador !== 'todos') filtro.push('s.borrador = 0');
+  // El `+` delante NO es una errata: le quita a SQLite el índice de `borrador`
+  // para esta condición. Casi todo es `borrador = 0`, así que entrar por ese
+  // índice era leerse la tabla entera y ordenarla después para quedarse con una
+  // página. Sin él recorre el índice de fecha ya en orden y para al llenar la
+  // página: 200 filas leídas en vez de todas. Turso cobra por fila leída.
+  // Ese índice ya no está en el esquema, pero la consulta no debe depender de
+  // que la base lo tenga al día.
+  else if (borrador !== 'todos') filtro.push('+s.borrador = 0');
 
   // `ids` null = no se buscó nada. Lista vacía = se buscó y no hay nada, que no
   // es lo mismo: sin este `0` una búsqueda sin resultados los devolvería todos.
@@ -376,7 +387,6 @@ async function _contarServicios({ busqueda = '', ...filtros } = {}) {
   const f = await consultarUna(`
     SELECT COUNT(*) AS n
       FROM servicios s
-      JOIN clientes c ON c.id = s.cliente_id
       ${donde}`, args);
   return f?.n ?? 0;
 }

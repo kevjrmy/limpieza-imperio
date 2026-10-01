@@ -154,7 +154,7 @@ Las órdenes que hay, y cuáles escriben:
 
 | | |
 |---|---|
-| `npm run esquema` | **escribe** — crea tablas y añade columnas nuevas |
+| `npm run esquema` | **escribe** — crea tablas, añade columnas nuevas y retira índices viejos |
 | `npm run sembrar` | **escribe** — con `--rehacer` borra y vuelve a llenar |
 | `npm run modelo` | escribe el `.ods` a partir del `.xlsx` |
 | `npm run respaldo` | sólo lee — deja un `.sql` restaurable en `.datos/` |
@@ -252,18 +252,68 @@ Cada lunes de madrugada el cron de Vercel (`vercel.json`) llama a
 
 El 1 de octubre de 2026 la cuenta amaneció bloqueada —«reads are blocked»— por
 pasarse de cuota en septiembre, y siguió así hasta unas ocho horas después de
-que el contador se pusiera a cero. Con el login cargando y todo lo demás roto.
+que el contador se pusiera a cero. El login cargaba y todo lo demás estaba roto.
+No se llegó a saber qué límite saltó: el panel ya enseñaba ceros. Lo de aquí
+abajo es la causa más probable, deducida de los planes de consulta, no medida
+por Turso.
 
-La causa más probable estaba en `_clientes()`: un `LEFT JOIN` directo a
-`v_servicios` que SQLite resolvía entrando por el índice de `borrador` y
-recorriendo todos los servicios confirmados **una vez por cliente** —180 × 1.450
-= 261.000 filas— en cada carga de `/`, `/servicios` y `/clientes`. Ahora los
-servicios se suman en una subconsulta agrupada antes de cruzarlos.
+**La raíz era un índice, `idx_servicios_borrador`, sobre la columna entera.**
+Casi todo es `borrador = 0`, así que no descartaba nada, pero SQLite —que aquí
+no tiene estadísticas (`sqlite_stat1`) y elige índice a ciegas— lo prefería a
+los de periodo, cliente y fecha. Y como la vista `v_servicios` lleva ese filtro,
+**toda consulta sobre la vista se leía la tabla entera**: los servicios de un
+cliente, los de un mes, el contador del menú en cada página.
 
-**Si añades una consulta que cruce dos tablas, mira su plan** con
-`EXPLAIN QUERY PLAN` sobre una copia: un `SEARCH … USING INDEX
-idx_servicios_borrador` dentro de un bucle es este mismo fallo. La base no tiene
-estadísticas (`sqlite_stat1`), así que el planificador elige índice a ciegas.
+El peor caso era `_clientes()`: un `LEFT JOIN` directo a la vista recorría todos
+los servicios confirmados **una vez por cliente** —180 × 1.450 = 261.000 filas—
+en cada carga de `/`, `/servicios` y `/clientes`. Crecía con el producto de las
+dos tablas.
+
+Lo que se hizo, por orden de importancia:
+
+- **El índice se cambió por uno parcial**, `idx_servicios_borradores`, que sólo
+  cubre los borradores (`WHERE borrador = 1`). Sirve a quien los busca y no se
+  puede elegir para lo confirmado. `esquema.sql` lleva el nuevo y
+  `scripts/esquema.mjs` retira el viejo (`INDICES_RETIRADOS`).
+- `_clientes()` y la exportación de clientes suman los servicios en una
+  subconsulta agrupada **antes** de cruzarlos con los clientes.
+- La lista de `/servicios` filtra con **`+s.borrador = 0`**, y el `+` no es una
+  errata: le prohíbe a SQLite usar un índice para esa condición, y así recorre
+  el de fecha ya en orden y para al llenar la página. Con el índice parcial ya
+  no haría falta; se queda porque así la consulta no depende de que la base
+  tenga el esquema al día.
+- Los desplegables del formulario de servicio piden `listaClientes()` y
+  `listaColaboradores()` y se quedan con número y nombre. **No uses `clientes()`
+  ni `colaboradores()` para una lista de nombres**: suman todo el dinero.
+- `pendientes()` va con `cache` de React: el layout y la página la piden las dos.
+
+Comprobado sobre una copia de la base real: 25 pantallas y exportaciones dan
+exactamente el mismo texto con el índice viejo y con el nuevo, borradores
+incluidos.
+
+**El cambio de índice hay que aplicarlo a la base del cliente** con
+`npm run esquema` y las variables de Turso en la línea de órdenes, después de un
+`npm run respaldo`. Desplegar el código no toca la base. Para saber si ya está
+hecho, esto tiene que dar una fila y sólo una, la del índice parcial:
+
+```sql
+SELECT name, sql FROM sqlite_master WHERE name LIKE 'idx_servicios_borr%';
+```
+
+Mientras no se aplique, la aplicación funciona igual y da los mismos números;
+sólo lee de más.
+
+Lo que sigue leyendo todos los servicios, y es inherente a lo que enseña: el
+resumen, `/clientes` y `/colaboradores` (suman el dinero de cada uno), la lista
+de meses del filtro, el contador de «N servicios» y la búsqueda de servicios,
+que pliega los acentos en JavaScript. Son miles de filas por carga, no cientos
+de miles. Lo siguiente, si el panel de Turso dijera que hace falta, serían
+totales guardados en vez de recalculados — y eso es una migración de verdad.
+
+**Si añades una consulta, mira su plan** con `EXPLAIN QUERY PLAN` sobre una
+copia. Un `SCAN` de `servicios` donde esperabas un `SEARCH`, o un `SEARCH`
+dentro de un bucle que no usa la columna del cruce, es este mismo fallo. Y **no
+pongas índice a una columna que casi siempre vale lo mismo**.
 
 ### Comprobar que la base sigue cuadrando
 

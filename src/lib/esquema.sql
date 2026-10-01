@@ -119,7 +119,15 @@ CREATE INDEX IF NOT EXISTS idx_servicios_periodo ON servicios(periodo);
 CREATE INDEX IF NOT EXISTS idx_servicios_cliente ON servicios(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_servicios_fecha   ON servicios(fecha);
 CREATE INDEX IF NOT EXISTS idx_servicios_revisar ON servicios(revisar);
-CREATE INDEX IF NOT EXISTS idx_servicios_borrador ON servicios(borrador);
+-- Sólo los BORRADORES llevan índice, y es parcial a propósito. Hubo uno sobre
+-- la columna entera (`idx_servicios_borrador`) y era peor que no tener ninguno:
+-- casi todo es `borrador = 0`, así que no descartaba nada, pero SQLite —que aquí
+-- no tiene estadísticas— lo prefería a los de periodo, cliente y fecha. Como la
+-- vista `v_servicios` lleva ese filtro, TODA consulta sobre ella se leía la
+-- tabla entera: los servicios de un cliente, los de un mes, el contador del
+-- menú en cada página. Turso cobra por fila leída y la cuenta se bloqueó por
+-- cuota en septiembre de 2026. `scripts/esquema.mjs` retira el viejo.
+CREATE INDEX IF NOT EXISTS idx_servicios_borradores ON servicios(periodo) WHERE borrador = 1;
 
 -- Los servicios que cuentan.
 --

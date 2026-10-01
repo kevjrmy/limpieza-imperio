@@ -475,6 +475,20 @@ Los importes son `REAL`, no céntimos enteros. Suena mal para contabilidad, pero
 totales del año sin avisar. Donde el redondeo sí se nota, el reparto entre
 colaboradores, se trabaja en céntimos enteros.
 
+### Los índices, y el que sobraba
+
+Turso cobra por fila leída, y el 1 de octubre de 2026 la cuenta amaneció
+bloqueada por pasarse de cuota. Lo más probable es que la culpa fuera de un
+índice: `servicios(borrador)`. Casi todo es `borrador = 0`, así que no
+descartaba nada, pero SQLite —que aquí no tiene estadísticas— lo prefería a los
+de periodo, cliente y fecha. Como la vista `v_servicios` lleva ese filtro, toda
+consulta sobre ella se leía la tabla entera; la peor, la lista de clientes, lo
+hacía una vez por cliente: 261.000 filas en cada carga.
+
+Ahora el índice es **parcial** —sólo los borradores— y la lista de clientes suma
+antes de cruzar. Un índice sobre una columna que casi siempre vale lo mismo es
+peor que no tener ninguno. El detalle y cómo comprobarlo están en `CLAUDE.md`.
+
 ## El respaldo
 
 ```bash
@@ -492,6 +506,13 @@ muere con «cannot INSERT into generated column». La primera versión escribía
 respaldo tan tranquila y lo restauraba **sin un solo servicio**. Se detectan con
 `pragma_table_xinfo`; `table_info` ni las enseña. Un respaldo que no se ha
 restaurado nunca no es un respaldo.
+
+**Además se manda solo, cada lunes, por correo.** Un cron de Vercel llama a
+`/api/respaldo`, que vuelca la base con el mismo código que el script
+(`src/lib/respaldo.js`) y la envía adjunta al correo del negocio con Resend. La
+ruta no tiene sesión —un cron no tiene cookie—: la guarda `CRON_SECRET`. Si la
+base no se puede leer no se manda nada, ni siquiera un aviso; lo pidió así. La
+copia que hay en `.datos/` depende de que alguien se acuerde; ésta no.
 
 ## Notas técnicas
 
@@ -512,7 +533,8 @@ restaurado nunca no es un respaldo.
 - **`consultas.js` no se puede importar desde un componente de cliente**:
   arrastra el módulo de sesión, que es sólo de servidor. Lo compartido vive en
   `formato.js`, que es puro.
-- **`vercel.json` sólo declara el framework, y hace falta.** El proyecto se creó
+- **`vercel.json` declara el framework y el cron del respaldo semanal, y lo
+  primero hace falta.** El proyecto se creó
   como Vite y esa preferencia sigue guardada en Vercel; sin esa clave el build
   termina bien y el despliegue muere buscando una carpeta `dist`.
 - **SheetJS es dependencia de desarrollo**, no de la aplicación: lo usan los
@@ -529,6 +551,12 @@ restaurado nunca no es un respaldo.
 Las variables ya están en Vercel y las cuatro columnas nuevas ya están en su
 base —respaldo del 19 de agosto de 2026 hecho y restaurado antes de tocarla, y
 las cifras cuadrando al céntimo después—. Queda:
+
+- **Aplicar el cambio de índice a su base** (`npm run esquema` con las
+  variables de Turso, tras un `npm run respaldo`). El código ya está desplegado
+  y funciona igual sin ello; sólo lee de más.
+- Ver llegar el primer respaldo por correo, el lunes 5 de octubre de 2026. El
+  envío real no se ha probado.
 
 - Verle entrar la primera vez desde su móvil. La contraseña es la misma que ya
   usaba, así que lo único nuevo para él es la pantalla.

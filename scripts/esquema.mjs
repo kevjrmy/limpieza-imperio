@@ -5,7 +5,8 @@
  *   TURSO_DATABASE_URL=… …     → la base de Turso
  *
  * Es idempotente: todo es CREATE TABLE IF NOT EXISTS, así que se puede volver a
- * pasar sin miedo. No borra nada.
+ * pasar sin miedo. No borra ningún dato: lo único que quita son los índices de
+ * `INDICES_RETIRADOS`, que no guardan nada que no esté en su tabla.
  */
 
 import fs from 'node:fs';
@@ -55,6 +56,13 @@ const COLUMNAS_NUEVAS = [
   { tabla: 'clientes', columna: 'nif', definicion: "TEXT NOT NULL DEFAULT ''" },
 ];
 
+/**
+ * Índices que ya no están en `esquema.sql` y hay que quitar de una base que los
+ * tenga. Borrar la línea del esquema no basta: `CREATE INDEX IF NOT EXISTS` no
+ * retira nada. El porqué de cada uno está en `esquema.sql`.
+ */
+const INDICES_RETIRADOS = ['idx_servicios_borrador'];
+
 // El orden importa: las vistas se definen sobre columnas que quizá aún no
 // existen en una base antigua, así que van después de las migraciones. Las
 // tablas van antes, porque no se puede migrar lo que todavía no está.
@@ -100,6 +108,18 @@ for (const s of derivados) {
   }
 }
 
+let retirados = 0;
+for (const indice of INDICES_RETIRADOS) {
+  const { rows } = await db().execute({
+    sql: "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?", args: [indice],
+  });
+  if (!rows.length) continue;
+  await db().execute(`DROP INDEX ${indice}`);
+  console.log(`  − índice ${indice}`);
+  retirados++;
+}
+
 console.log(`Esquema aplicado sobre ${url} — ${tablas.length} tablas, `
   + `${derivados.length} índices y vistas`
-  + `${añadidas ? `, ${añadidas} columna(s) añadida(s)` : ''}.`);
+  + `${añadidas ? `, ${añadidas} columna(s) añadida(s)` : ''}`
+  + `${retirados ? `, ${retirados} índice(s) retirado(s)` : ''}.`);
